@@ -9,6 +9,7 @@ export interface AdminTokenPayload {
   adminId: number;
   username: string;
   role: string;
+  wallet_address: string;
 }
 
 export interface UserTokenPayload {
