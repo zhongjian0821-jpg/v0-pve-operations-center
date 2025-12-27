@@ -1,3 +1,10 @@
+import './globals.css'
+
+export const metadata = {
+  title: 'PVE Operations Center',
+  description: 'Web3 Node Management Platform',
+}
+
 export default function RootLayout({
   children,
 }: {
