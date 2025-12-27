@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     await sql`
       UPDATE pending_assignments
-      SET status = 'assigned', assigned_at = NOW(), assigned_by = ${admin.wallet_address}
+      SET status = 'assigned', assigned_at = NOW(), assigned_by = '${admin.wallet_address}'
       WHERE node_id = ${nodeId}
     `;
 
