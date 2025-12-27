@@ -1,18 +1,19 @@
-import './globals.css'
+import type { Metadata } from "next";
+import "./globals.css";
 
-export const metadata = {
-  title: 'PVE Operations Center',
-  description: 'Web3 Node Management Platform',
-}
+export const metadata: Metadata = {
+  title: "PVE 运营中心",
+  description: "Web3 节点管理平台",
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="en">
+    <html lang="zh-CN">
       <body>{children}</body>
     </html>
-  )
+  );
 }
