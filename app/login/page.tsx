@@ -25,62 +25,133 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-800 p-6 sm:p-8">
-          {/* 标题 */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2 sm:mb-3">
-              PVE 运营中心
-            </h1>
-            <p className="text-slate-400 text-sm sm:text-base">Web3 节点管理平台</p>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%)',
+      padding: '1rem'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '28rem',
+        background: 'rgba(15, 23, 42, 0.8)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '1rem',
+        border: '1px solid rgba(51, 65, 85, 1)',
+        padding: '2rem',
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
+      }}>
+        {/* 标题 */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h1 style={{
+            fontSize: '2rem',
+            fontWeight: 'bold',
+            background: 'linear-gradient(to right, #60a5fa, #22d3ee)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: '0.5rem'
+          }}>
+            PVE 运营中心
+          </h1>
+          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Web3 节点管理平台</p>
+        </div>
+
+        {/* 表单 */}
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {error && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.5)',
+              borderRadius: '0.5rem',
+              padding: '0.75rem',
+              color: '#fca5a5',
+              fontSize: '0.875rem',
+              textAlign: 'center'
+            }}>
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label style={{
+              display: 'block',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: '#cbd5e1',
+              marginBottom: '0.5rem'
+            }}>
+              用户名
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                background: 'rgba(51, 65, 85, 0.5)',
+                border: '1px solid #475569',
+                borderRadius: '0.5rem',
+                color: 'white',
+                fontSize: '1rem',
+                outline: 'none'
+              }}
+              placeholder="请输入用户名"
+              required
+            />
           </div>
 
-          {/* 表单 */}
-          <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-400 text-sm text-center">
-                {error}
-              </div>
-            )}
+          <div>
+            <label style={{
+              display: 'block',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: '#cbd5e1',
+              marginBottom: '0.5rem'
+            }}>
+              密码
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                background: 'rgba(51, 65, 85, 0.5)',
+                border: '1px solid #475569',
+                borderRadius: '0.5rem',
+                color: 'white',
+                fontSize: '1rem',
+                outline: 'none'
+              }}
+              placeholder="请输入密码"
+              required
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                用户名
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-slate-500 text-sm sm:text-base"
-                placeholder="请输入用户名"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                密码
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-slate-500 text-sm sm:text-base"
-                placeholder="请输入密码"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20 text-sm sm:text-base"
-            >
-              {loading ? '登录中...' : '登录'}
-            </button>
-          </form>
-        </div>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              background: 'linear-gradient(to right, #2563eb, #06b6d4)',
+              color: 'white',
+              fontWeight: '600',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.5 : 1,
+              fontSize: '1rem',
+              boxShadow: '0 4px 20px rgba(37, 99, 235, 0.2)'
+            }}
+          >
+            {loading ? '登录中...' : '登录'}
+          </button>
+        </form>
       </div>
     </div>
   )
