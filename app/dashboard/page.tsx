@@ -1,11 +1,9 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api-client'
 
 export default function Dashboard() {
-  const router = useRouter()
   const [stats, setStats] = useState<any>(null)
   const [admin, setAdmin] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -23,7 +21,7 @@ export default function Dashboard() {
       setAdmin(adminData.admin)
       setStats(nodesStats)
     } catch (err) {
-      router.push('/login')
+      window.location.href = '/login'
     } finally {
       setLoading(false)
     }
@@ -31,7 +29,7 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     api.logout()
-    router.push('/login')
+    window.location.href = '/login'
   }
 
   if (loading) {
@@ -44,7 +42,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-900">
-      {/* Header */}
       <header className="bg-slate-800 border-b border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
@@ -62,7 +59,6 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Navigation */}
       <nav className="bg-slate-800 border-b border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex gap-1">
@@ -85,10 +81,8 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Total Nodes */}
           <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -101,7 +95,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Active Nodes */}
           <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -114,7 +107,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Activity Rate */}
           <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -130,7 +122,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
           <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
