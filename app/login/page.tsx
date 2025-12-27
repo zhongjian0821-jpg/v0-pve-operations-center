@@ -1,11 +1,9 @@
 "use client"
 
 import { useState } from 'react'
-import { useRouter } from 'navigation'
 import { api } from '@/lib/api-client'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,7 +16,7 @@ export default function LoginPage() {
 
     try {
       await api.login(username, password)
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     } catch (err: any) {
       setError(err.message || 'Login failed')
     } finally {
