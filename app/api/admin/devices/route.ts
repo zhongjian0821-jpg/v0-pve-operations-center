@@ -5,17 +5,13 @@ import { successResponse, errorResponse, requireAdmin } from '@/lib/api-utils';
 export async function GET(request: NextRequest) {
   try {
     requireAdmin(request);
-    
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || 'pending';
 
-    const orders = await sql`
-      SELECT * FROM pending_assignments 
-      WHERE status = ${status}
-      ORDER BY created_at DESC
+    const devices = await sql`
+      SELECT * FROM assigned_records 
+      ORDER BY assigned_at DESC
     `;
 
-    return successResponse(orders);
+    return successResponse(devices);
   } catch (error: any) {
     if (error.message === 'Unauthorized') return errorResponse('未授权', 401);
     return errorResponse(error.message, 500);
