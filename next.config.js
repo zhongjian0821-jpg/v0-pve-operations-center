@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 强制禁用静态页面生成，确保动态路由
-  experimental: {
-    runtime: 'experimental-edge'
-  },
-  // 添加headers禁用缓存
+  // 添加headers禁用admin路由缓存
   async headers() {
     return [
       {
@@ -12,12 +8,26 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate'
+            value: 'no-cache, no-store, must-revalidate, proxy-revalidate'
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache'
+          },
+          {
+            key: 'Expires',
+            value: '0'
+          },
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow'
           }
         ]
       }
     ]
-  }
+  },
+  // 确保生成静态路由
+  output: 'standalone'
 }
 
 module.exports = nextConfig
