@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAdmin, successResponse, errorResponse } from '@/lib/api-utils';
 
-// GET - 获取所有层级关系记录
 export async function GET(request: NextRequest) {
   try {
     requireAdmin(request);
@@ -11,7 +10,6 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
     
     if (id) {
-      // 获取单个记录
       const record = await sql`SELECT * FROM hierarchy WHERE id = ${id}`;
       
       if (record.length === 0) {
@@ -20,7 +18,6 @@ export async function GET(request: NextRequest) {
       
       return successResponse(record[0]);
     } else {
-      // 获取所有记录
       const records = await sql`SELECT * FROM hierarchy ORDER BY id DESC`;
       return successResponse(records);
     }
@@ -29,26 +26,21 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - 创建新层级关系记录
 export async function POST(request: NextRequest) {
   try {
     requireAdmin(request);
     
     const body = await request.json();
     
-    // 这里需要根据具体表结构来实现
-    // 暂时返回成功，后续完善具体字段
-    
     return successResponse({ 
       message: '层级关系创建功能待实现',
       data: body 
-    }, 201);
+    });
   } catch (error: any) {
     return errorResponse(error.message, 500);
   }
 }
 
-// PUT - 更新层级关系记录
 export async function PUT(request: NextRequest) {
   try {
     requireAdmin(request);
@@ -60,8 +52,6 @@ export async function PUT(request: NextRequest) {
       return errorResponse('ID is required', 400);
     }
     
-    // 暂时返回成功，后续完善具体字段
-    
     return successResponse({ 
       message: '层级关系更新功能待实现',
       id 
@@ -71,7 +61,6 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - 删除层级关系记录
 export async function DELETE(request: NextRequest) {
   try {
     requireAdmin(request);
