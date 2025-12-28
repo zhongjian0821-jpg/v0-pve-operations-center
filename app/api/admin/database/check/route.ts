@@ -19,55 +19,44 @@ export async function GET(request: NextRequest) {
     for (const table of tables) {
       const tableName = table.table_name;
 
-      // 获取列信息
-      const columns = await sql`
-        SELECT 
-          column_name, 
-          data_type, 
-          character_maximum_length,
-          is_nullable,
-          column_default
-        FROM information_schema.columns 
-        WHERE table_name = ${tableName}
-        ORDER BY ordinal_position
-      `;
+      try {
+        // 获取列信息
+        const columns = await sql`
+          SELECT 
+            column_name, 
+            data_type, 
+            character_maximum_length,
+            is_nullable,
+            column_default
+          FROM information_schema.columns 
+          WHERE table_name = ${tableName}
+          ORDER BY ordinal_position
+        `;
 
-      // 获取行数 - 根据表名分别查询
-      let rowCount = 0;
-      
-      if (tableName === 'admins') {
-        const result = await sql`SELECT COUNT(*) as count FROM admins`;
-        rowCount = Number(result[0].count);
-      } else if (tableName === 'nodes') {
-        const result = await sql`SELECT COUNT(*) as count FROM nodes`;
-        rowCount = Number(result[0].count);
-      } else if (tableName === 'wallets') {
-        const result = await sql`SELECT COUNT(*) as count FROM wallets`;
-        rowCount = Number(result[0].count);
-      } else if (tableName === 'withdrawals') {
-        const result = await sql`SELECT COUNT(*) as count FROM withdrawals`;
-        rowCount = Number(result[0].count);
-      } else if (tableName === 'orders') {
-        const result = await sql`SELECT COUNT(*) as count FROM orders`;
-        rowCount = Number(result[0].count);
-      } else if (tableName === 'transactions') {
-        const result = await sql`SELECT COUNT(*) as count FROM transactions`;
-        rowCount = Number(result[0].count);
-      } else if (tableName === 'login_logs') {
-        const result = await sql`SELECT COUNT(*) as count FROM login_logs`;
-        rowCount = Number(result[0].count);
+        // 获取行数 - 使用动态 SQL (Neon 支持)
+        const countQuery = `SELECT COUNT(*) as count FROM "${tableName}"`;
+        const countResult = await sql.unsafe(countQuery);
+        const rowCount = Number(countResult[0].count);
+
+        tableDetails[tableName] = {
+          columns: columns.map((c: any) => ({
+            name: c.column_name,
+            type: c.data_type,
+            maxLength: c.character_maximum_length,
+            nullable: c.is_nullable === 'YES',
+            default: c.column_default
+          })),
+          rowCount
+        };
+      } catch (err: any) {
+        // 如果某个表查询失败，记录错误但继续
+        console.error(`Error querying table ${tableName}:`, err.message);
+        tableDetails[tableName] = {
+          columns: [],
+          rowCount: 0,
+          error: err.message
+        };
       }
-
-      tableDetails[tableName] = {
-        columns: columns.map((c: any) => ({
-          name: c.column_name,
-          type: c.data_type,
-          maxLength: c.character_maximum_length,
-          nullable: c.is_nullable === 'YES',
-          default: c.column_default
-        })),
-        rowCount
-      };
     }
 
     return successResponse({
