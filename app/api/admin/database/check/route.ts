@@ -4,7 +4,7 @@ import { successResponse, errorResponse } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
   try {
-    // 获取所有表
+    // 1. 获取所有表
     const tables = await sql`
       SELECT table_name 
       FROM information_schema.tables 
@@ -13,11 +13,13 @@ export async function GET(request: NextRequest) {
     `;
 
     const tableNames = tables.map((t: any) => t.table_name);
-
-    // 获取每个表的列信息
     const tableDetails: any = {};
 
-    for (const tableName of tableNames) {
+    // 2. 获取每个表的详细信息
+    for (const table of tables) {
+      const tableName = table.table_name;
+
+      // 获取列信息
       const columns = await sql`
         SELECT 
           column_name, 
@@ -30,8 +32,8 @@ export async function GET(request: NextRequest) {
         ORDER BY ordinal_position
       `;
 
-      // 获取行数
-      const countResult = await sql.unsafe(`SELECT COUNT(*) as count FROM ${tableName}`);
+      // 获取行数 - 使用 sql.unsafe 的正确方式
+      const countResult = await sql.unsafe(`SELECT COUNT(*) as count FROM "${tableName}"`);
       const rowCount = Number(countResult[0].count);
 
       tableDetails[tableName] = {
@@ -52,6 +54,7 @@ export async function GET(request: NextRequest) {
       totalTables: tableNames.length
     });
   } catch (error: any) {
+    console.error('Database check error:', error);
     return errorResponse(error.message, 500);
   }
 }
