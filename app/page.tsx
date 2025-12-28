@@ -9,7 +9,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950">
-      <div className="text-blue-400">正在跳转...</div>
+      <div className="text-blue-400 text-lg">正在跳转到登录页...</div>
     </div>
   )
 }
