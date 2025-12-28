@@ -54,13 +54,27 @@ export default function OrdersPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {orders.map((order) => (
               <tr key={order.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.order_id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.user_wallet.slice(0, 10)}...</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">\${order.amount_usdt}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={\`px-2 inline-flex text-xs leading-5 font-semibold rounded-full \${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}\`}>{order.status}</span>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {order.order_id}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString()}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {order.user_wallet.slice(0, 10)}...
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  ${order.amount_usdt}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {order.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {new Date(order.created_at).toLocaleDateString()}
+                </td>
               </tr>
             ))}
           </tbody>
