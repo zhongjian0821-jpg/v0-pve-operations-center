@@ -1,10 +1,8 @@
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin, successResponse, errorResponse } from '@/lib/api-utils';
-
+import { successResponse, errorResponse } from '@/lib/api-utils';
 export async function GET(request: NextRequest) {
   try {
-    requireAdmin(request);
     const records = await sql`SELECT * FROM ashva_price_history ORDER BY timestamp DESC LIMIT 100`;
     return successResponse(records);
   } catch (error: any) {
