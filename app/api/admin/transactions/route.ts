@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAdmin, successResponse, errorResponse } from '@/lib/api-utils';
 
-// GET - 获取交易记录
 export async function GET(request: NextRequest) {
   try {
     requireAdmin(request);
@@ -12,27 +11,38 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const type = searchParams.get('type');
     
-    let query = `SELECT * FROM transactions WHERE 1=1`;
-    const params: any[] = [];
+    let records;
     
-    if (walletAddress) {
-      params.push(walletAddress);
-      query += ` AND wallet_address = $${params.length}`;
+    if (walletAddress && status && type) {
+      records = await sql`
+        SELECT * FROM transactions 
+        WHERE wallet_address = ${walletAddress} 
+        AND status = ${status} 
+        AND transaction_type = ${type}
+        ORDER BY created_at DESC
+      `;
+    } else if (walletAddress && status) {
+      records = await sql`
+        SELECT * FROM transactions 
+        WHERE wallet_address = ${walletAddress} 
+        AND status = ${status}
+        ORDER BY created_at DESC
+      `;
+    } else if (walletAddress) {
+      records = await sql`
+        SELECT * FROM transactions 
+        WHERE wallet_address = ${walletAddress}
+        ORDER BY created_at DESC
+      `;
+    } else if (status) {
+      records = await sql`
+        SELECT * FROM transactions 
+        WHERE status = ${status}
+        ORDER BY created_at DESC
+      `;
+    } else {
+      records = await sql`SELECT * FROM transactions ORDER BY created_at DESC`;
     }
-    
-    if (status) {
-      params.push(status);
-      query += ` AND status = $${params.length}`;
-    }
-    
-    if (type) {
-      params.push(type);
-      query += ` AND transaction_type = $${params.length}`;
-    }
-    
-    query += ` ORDER BY created_at DESC`;
-    
-    const records = await sql.unsafe(query, params);
     
     return successResponse(records);
   } catch (error: any) {
@@ -40,7 +50,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - 创建交易记录
 export async function POST(request: NextRequest) {
   try {
     requireAdmin(request);
@@ -73,13 +82,12 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `;
     
-    return successResponse(result[0], 201);
+    return successResponse(result[0]);
   } catch (error: any) {
     return errorResponse(error.message, 500);
   }
 }
 
-// PUT - 更新交易状态
 export async function PUT(request: NextRequest) {
   try {
     requireAdmin(request);
