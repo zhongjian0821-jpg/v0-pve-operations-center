@@ -1,146 +1,251 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from 'react'
-import { api } from '@/lib/api-client'
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function Dashboard() {
-  const [stats, setStats] = useState<any>(null)
-  const [admin, setAdmin] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+interface MenuItem {
+  title: string;
+  path: string;
+  description: string;
+  icon: string;
+  count?: number;
+}
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [admin, setAdmin] = useState<any>(null);
+  const [stats, setStats] = useState<{[key: string]: number}>({});
 
   useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
-    try {
-      const [adminData, nodesStats] = await Promise.all([api.getMe(), api.getNodesStats()])
-      setAdmin(adminData.admin)
-      setStats(nodesStats)
-    } catch (err) {
-      window.location.href = '/login'
-    } finally {
-      setLoading(false)
+    const token = localStorage.getItem('admin_token');
+    const adminData = localStorage.getItem('admin_user');
+    
+    if (!token || !adminData) {
+      router.push('/login');
+      return;
     }
-  }
+    
+    setAdmin(JSON.parse(adminData));
+    fetchStats(token);
+  }, [router]);
+
+  const fetchStats = async (token: string) => {
+    // 获取各个表的统计数据
+    const endpoints = [
+      'nodes', 'wallets', 'withdrawals', 'orders', 'transactions',
+      'assigned-records', 'commission-records', 'hierarchy', 'member-level-config'
+    ];
+    
+    const newStats: {[key: string]: number} = {};
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(`/api/admin/${endpoint}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          newStats[endpoint] = data.data.length;
+        }
+      } catch (err) {
+        // 忽略错误
+      }
+    }
+    
+    setStats(newStats);
+  };
 
   const handleLogout = () => {
-    api.logout()
-    window.location.href = '/login'
-  }
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    router.push('/login');
+  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="text-blue-400 text-lg">加载中...</div>
-      </div>
-    )
-  }
+  const pveMenuItems: MenuItem[] = [
+    {
+      title: '节点管理',
+      path: '/nodes',
+      description: '管理区块链节点',
+      icon: '🖥️',
+      count: stats['nodes']
+    },
+    {
+      title: '钱包管理',
+      path: '/wallets',
+      description: '管理用户钱包',
+      icon: '💰',
+      count: stats['wallets']
+    },
+    {
+      title: '提现管理',
+      path: '/withdrawals',
+      description: '处理提现申请',
+      icon: '💸',
+      count: stats['withdrawals']
+    },
+    {
+      title: '订单管理',
+      path: '/orders',
+      description: '查看和管理订单',
+      icon: '📦',
+      count: stats['orders']
+    },
+    {
+      title: '交易记录',
+      path: '/transactions',
+      description: '查看所有交易记录',
+      icon: '📊',
+      count: stats['transactions']
+    },
+    {
+      title: '登录日志',
+      path: '/login-logs',
+      description: '查看系统登录日志',
+      icon: '📝'
+    }
+  ];
+
+  const web3MenuItems: MenuItem[] = [
+    {
+      title: '分配记录',
+      path: '/assigned-records',
+      description: '节点分配记录',
+      icon: '📋',
+      count: stats['assigned-records']
+    },
+    {
+      title: '佣金分配',
+      path: '/commission-distribution',
+      description: '佣金分配管理',
+      icon: '💵'
+    },
+    {
+      title: '佣金记录',
+      path: '/commission-records',
+      description: '查看佣金记录',
+      icon: '💰',
+      count: stats['commission-records']
+    },
+    {
+      title: '层级关系',
+      path: '/hierarchy',
+      description: '用户层级管理',
+      icon: '🌳',
+      count: stats['hierarchy']
+    },
+    {
+      title: '会员等级',
+      path: '/member-level-config',
+      description: '会员等级配置',
+      icon: '⭐',
+      count: stats['member-level-config']
+    },
+    {
+      title: '节点列表',
+      path: '/node-listings',
+      description: '公开节点列表',
+      icon: '📌'
+    },
+    {
+      title: '操作日志',
+      path: '/operation-logs',
+      description: '系统操作日志',
+      icon: '📜'
+    },
+    {
+      title: '质押记录',
+      path: '/staking-records',
+      description: '质押记录管理',
+      icon: '🔒'
+    },
+    {
+      title: '提现记录',
+      path: '/withdrawal-records',
+      description: 'Web3 提现记录',
+      icon: '💸'
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-slate-900 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-            PVE 运营中心
-          </h1>
-          <div className="flex items-center gap-4">
-            <span className="text-slate-400">欢迎，<span className="text-white">{admin?.username}</span></span>
-            <button onClick={handleLogout} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition">
-              退出
+      <div className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">PVE 运营中心</h1>
+              <p className="text-sm text-gray-500 mt-1">欢迎回来，{admin?.username}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              退出登录
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Navigation */}
-      <nav className="bg-slate-900 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-2">
-            {[
-              { name: '仪表板', path: '/dashboard', icon: '📊' },
-              { name: '节点管理', path: '/nodes', icon: '🖥️' },
-              { name: '钱包管理', path: '/wallets', icon: '👛' },
-              { name: '提现管理', path: '/withdrawals', icon: '💸' },
-              { name: '订单管理', path: '/orders', icon: '📦' }
-            ].map(item => (
-              <a
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* PVE 核心功能 */}
+        <section className="mb-12">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">PVE 核心功能</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pveMenuItems.map((item) => (
+              <button
                 key={item.path}
-                href={item.path}
-                className={`flex items-center gap-2 px-4 py-3 transition ${
-                  item.path === '/dashboard'
-                    ? 'text-blue-400 border-b-2 border-blue-400'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                onClick={() => router.push(item.path)}
+                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
               >
-                <span>{item.icon}</span>
-                <span>{item.name}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      </nav>
-
-      {/* Main */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">总节点数</p>
-                <p className="text-4xl font-bold text-white mt-2">{stats?.total || 0}</p>
-              </div>
-              <div className="text-4xl">🖥️</div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">活跃节点</p>
-                <p className="text-4xl font-bold text-white mt-2">{stats?.active || 0}</p>
-              </div>
-              <div className="text-4xl">✅</div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">活跃率</p>
-                <p className="text-4xl font-bold text-white mt-2">
-                  {stats?.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}%
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-3xl">{item.icon}</span>
+                  {item.count !== undefined && (
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                      {item.count}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {item.description}
                 </p>
-              </div>
-              <div className="text-4xl">📊</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-white mb-5">快速操作</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { icon: '🖥️', label: '节点管理', path: '/nodes' },
-              { icon: '👛', label: '钱包管理', path: '/wallets' },
-              { icon: '💸', label: '提现审核', path: '/withdrawals' },
-              { icon: '📦', label: '订单查看', path: '/orders' }
-            ].map(action => (
-              <a
-                key={action.path}
-                href={action.path}
-                className="p-5 bg-slate-800/50 hover:bg-slate-800 rounded-xl transition border border-slate-700 hover:border-blue-500/50 text-center"
-              >
-                <div className="text-4xl mb-3">{action.icon}</div>
-                <div className="text-white font-semibold">{action.label}</div>
-              </a>
+              </button>
             ))}
           </div>
-        </div>
-      </main>
+        </section>
+
+        {/* Web3 会员中心 */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Web3 会员中心</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {web3MenuItems.map((item) => (
+              <button
+                key={item.path}
+                onClick={() => router.push(item.path)}
+                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-3xl">{item.icon}</span>
+                  {item.count !== undefined && (
+                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                      {item.count}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {item.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
-  )
+  );
 }
