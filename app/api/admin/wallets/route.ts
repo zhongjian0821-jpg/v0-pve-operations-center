@@ -178,6 +178,3 @@ export async function DELETE(request: NextRequest) {
     return errorResponse(error.message, 500);
   }
 }
-APIOEF
-
-echo '✅ Wallets API创建完成'
