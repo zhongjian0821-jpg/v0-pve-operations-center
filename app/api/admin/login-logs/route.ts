@@ -2,27 +2,30 @@ import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAdmin, successResponse, errorResponse } from '@/lib/api-utils';
 
-// GET - 获取登录日志
 export async function GET(request: NextRequest) {
   try {
     requireAdmin(request);
     
     const { searchParams } = new URL(request.url);
     const username = searchParams.get('username');
-    const limit = searchParams.get('limit') || '100';
+    const limit = parseInt(searchParams.get('limit') || '100');
     
-    let query = `SELECT * FROM login_logs WHERE 1=1`;
-    const params: any[] = [];
+    let records;
     
     if (username) {
-      params.push(username);
-      query += ` AND username = $${params.length}`;
+      records = await sql`
+        SELECT * FROM login_logs 
+        WHERE username = ${username}
+        ORDER BY login_time DESC 
+        LIMIT ${limit}
+      `;
+    } else {
+      records = await sql`
+        SELECT * FROM login_logs 
+        ORDER BY login_time DESC 
+        LIMIT ${limit}
+      `;
     }
-    
-    query += ` ORDER BY login_time DESC LIMIT $${params.length + 1}`;
-    params.push(limit);
-    
-    const records = await sql.unsafe(query, params);
     
     return successResponse(records);
   } catch (error: any) {
@@ -30,7 +33,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - 记录登录
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -53,24 +55,23 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `;
     
-    return successResponse(result[0], 201);
+    return successResponse(result[0]);
   } catch (error: any) {
     return errorResponse(error.message, 500);
   }
 }
 
-// DELETE - 清理旧日志
 export async function DELETE(request: NextRequest) {
   try {
     requireAdmin(request);
     
     const { searchParams } = new URL(request.url);
-    const days = searchParams.get('days') || '30';
+    const days = parseInt(searchParams.get('days') || '30');
     
     const result = await sql`
       DELETE FROM login_logs
-      WHERE login_time < NOW() - INTERVAL '${days} days'
-      RETURNING COUNT(*) as deleted_count
+      WHERE login_time < NOW() - INTERVAL '1 day' * ${days}
+      RETURNING id
     `;
     
     return successResponse({
