@@ -4,49 +4,97 @@ import { successResponse, errorResponse } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
   try {
-    // 创建 withdrawals 表
-    await sql`
-      CREATE TABLE IF NOT EXISTS withdrawals (
-        id SERIAL PRIMARY KEY,
-        wallet_address VARCHAR(42) NOT NULL,
-        amount DECIMAL(20, 8) NOT NULL,
-        to_address VARCHAR(42) NOT NULL,
-        status VARCHAR(20) DEFAULT 'pending',
-        tx_hash VARCHAR(66),
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        processed_at TIMESTAMPTZ,
-        CONSTRAINT fk_wallet FOREIGN KEY (wallet_address) 
-          REFERENCES wallets(wallet_address) ON DELETE CASCADE
-      )
-    `;
+    const results: any = {
+      created: [],
+      existing: [],
+      errors: []
+    };
 
-    // 创建索引
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_withdrawals_wallet 
-      ON withdrawals(wallet_address)
-    `;
+    // 1. 创建 withdrawals 表
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS withdrawals (
+          id SERIAL PRIMARY KEY,
+          wallet_address VARCHAR(42) NOT NULL,
+          amount DECIMAL(20, 8) NOT NULL,
+          to_address VARCHAR(42) NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          tx_hash VARCHAR(66),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          processed_at TIMESTAMPTZ
+        )
+      `;
+      results.created.push('withdrawals');
+    } catch (err: any) {
+      if (err.message.includes('already exists')) {
+        results.existing.push('withdrawals');
+      } else {
+        results.errors.push({ table: 'withdrawals', error: err.message });
+      }
+    }
 
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_withdrawals_status 
-      ON withdrawals(status)
-    `;
+    // 2. 创建 transactions 表
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS transactions (
+          id SERIAL PRIMARY KEY,
+          wallet_address VARCHAR(42) NOT NULL,
+          transaction_type VARCHAR(50) NOT NULL,
+          amount DECIMAL(20, 8) NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          tx_hash VARCHAR(66),
+          from_address VARCHAR(42),
+          to_address VARCHAR(42),
+          description TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `;
+      
+      await sql`CREATE INDEX IF NOT EXISTS idx_transactions_wallet ON transactions(wallet_address)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(transaction_type)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)`;
+      
+      results.created.push('transactions');
+    } catch (err: any) {
+      if (err.message.includes('already exists')) {
+        results.existing.push('transactions');
+      } else {
+        results.errors.push({ table: 'transactions', error: err.message });
+      }
+    }
 
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_withdrawals_created 
-      ON withdrawals(created_at DESC)
-    `;
-
-    // 检查表是否创建成功
-    const check = await sql`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'withdrawals'
-      ORDER BY ordinal_position
-    `;
+    // 3. 创建 login_logs 表
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS login_logs (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          username VARCHAR(100),
+          ip_address VARCHAR(45),
+          user_agent TEXT,
+          login_time TIMESTAMPTZ DEFAULT NOW(),
+          success BOOLEAN DEFAULT true,
+          failure_reason VARCHAR(255)
+        )
+      `;
+      
+      await sql`CREATE INDEX IF NOT EXISTS idx_login_logs_user ON login_logs(user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_login_logs_username ON login_logs(username)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_login_logs_time ON login_logs(login_time DESC)`;
+      
+      results.created.push('login_logs');
+    } catch (err: any) {
+      if (err.message.includes('already exists')) {
+        results.existing.push('login_logs');
+      } else {
+        results.errors.push({ table: 'login_logs', error: err.message });
+      }
+    }
 
     return successResponse({
-      message: 'Withdrawals table created successfully',
-      columns: check
+      message: 'Database tables setup complete',
+      ...results
     });
   } catch (error: any) {
     return errorResponse(error.message, 500);
@@ -55,46 +103,23 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // 检查表是否存在
-    const tableCheck = await sql`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'withdrawals'
-      ) as exists
+    // 检查表状态
+    const tables = await sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name IN ('withdrawals', 'transactions', 'login_logs')
+      ORDER BY table_name
     `;
 
-    if (!tableCheck[0].exists) {
-      return successResponse({
-        exists: false,
-        message: 'Withdrawals table does not exist'
-      });
-    }
-
-    // 获取表结构
-    const columns = await sql`
-      SELECT column_name, data_type, is_nullable
-      FROM information_schema.columns 
-      WHERE table_name = 'withdrawals'
-      ORDER BY ordinal_position
-    `;
-
-    // 获取索引
-    const indexes = await sql`
-      SELECT indexname, indexdef
-      FROM pg_indexes
-      WHERE tablename = 'withdrawals'
-    `;
-
-    // 获取记录数
-    const count = await sql`
-      SELECT COUNT(*) as count FROM withdrawals
-    `;
+    const existing = tables.map((t: any) => t.table_name);
+    const expected = ['withdrawals', 'transactions', 'login_logs'];
+    const missing = expected.filter(t => !existing.includes(t));
 
     return successResponse({
-      exists: true,
-      columns,
-      indexes,
-      record_count: Number(count[0].count)
+      existing,
+      missing,
+      allCreated: missing.length === 0
     });
   } catch (error: any) {
     return errorResponse(error.message, 500);
