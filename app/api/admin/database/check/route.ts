@@ -32,9 +32,31 @@ export async function GET(request: NextRequest) {
         ORDER BY ordinal_position
       `;
 
-      // 获取行数 - 使用 sql.unsafe 的正确方式
-      const countResult = await sql.unsafe(`SELECT COUNT(*) as count FROM "${tableName}"`);
-      const rowCount = Number(countResult[0].count);
+      // 获取行数 - 根据表名分别查询
+      let rowCount = 0;
+      
+      if (tableName === 'admins') {
+        const result = await sql`SELECT COUNT(*) as count FROM admins`;
+        rowCount = Number(result[0].count);
+      } else if (tableName === 'nodes') {
+        const result = await sql`SELECT COUNT(*) as count FROM nodes`;
+        rowCount = Number(result[0].count);
+      } else if (tableName === 'wallets') {
+        const result = await sql`SELECT COUNT(*) as count FROM wallets`;
+        rowCount = Number(result[0].count);
+      } else if (tableName === 'withdrawals') {
+        const result = await sql`SELECT COUNT(*) as count FROM withdrawals`;
+        rowCount = Number(result[0].count);
+      } else if (tableName === 'orders') {
+        const result = await sql`SELECT COUNT(*) as count FROM orders`;
+        rowCount = Number(result[0].count);
+      } else if (tableName === 'transactions') {
+        const result = await sql`SELECT COUNT(*) as count FROM transactions`;
+        rowCount = Number(result[0].count);
+      } else if (tableName === 'login_logs') {
+        const result = await sql`SELECT COUNT(*) as count FROM login_logs`;
+        rowCount = Number(result[0].count);
+      }
 
       tableDetails[tableName] = {
         columns: columns.map((c: any) => ({
