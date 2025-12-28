@@ -93,7 +93,7 @@ export default function WalletsManagementPage() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ wallet_address, ...formData })
+        body: JSON.stringify(formData)
       });
       const data = await response.json();
       if (data.success) {
