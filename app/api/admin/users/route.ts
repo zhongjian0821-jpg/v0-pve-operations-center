@@ -1,10 +1,9 @@
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin, successResponse, errorResponse } from '@/lib/api-utils';
+import { successResponse, errorResponse } from '@/lib/api-utils';
 
 export async function GET(request: NextRequest) {
   try {
-    requireAdmin(request);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (id) {
