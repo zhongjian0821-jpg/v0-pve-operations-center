@@ -30,10 +30,11 @@ export default function DashboardPage() {
   }, [router]);
 
   const fetchStats = async (token: string) => {
-    // 获取各个表的统计数据
     const endpoints = [
       'nodes', 'wallets', 'withdrawals', 'orders', 'transactions',
-      'assigned-records', 'commission-records', 'hierarchy', 'member-level-config'
+      'assigned-records', 'commission-records', 'hierarchy', 'member-level-config',
+      'cloud-node-purchases', 'image-node-purchases', 'marketplace-listings',
+      'marketplace-transactions', 'users'
     ];
     
     const newStats: {[key: string]: number} = {};
@@ -166,6 +167,56 @@ export default function DashboardPage() {
     }
   ];
 
+  const newFeatureItems: MenuItem[] = [
+    {
+      title: '云节点购买',
+      path: '/cloud-node-purchases',
+      description: '云节点购买记录',
+      icon: '☁️',
+      count: stats['cloud-node-purchases']
+    },
+    {
+      title: '镜像节点购买',
+      path: '/image-node-purchases',
+      description: '镜像节点购买记录',
+      icon: '💿',
+      count: stats['image-node-purchases']
+    },
+    {
+      title: '市场挂单',
+      path: '/marketplace-listings',
+      description: '节点市场挂单',
+      icon: '🏪',
+      count: stats['marketplace-listings']
+    },
+    {
+      title: '市场交易',
+      path: '/marketplace-transactions',
+      description: '节点市场交易记录',
+      icon: '🔄',
+      count: stats['marketplace-transactions']
+    },
+    {
+      title: 'ASHVA价格',
+      path: '/ashva-price-history',
+      description: 'ASHVA价格历史',
+      icon: '📈'
+    },
+    {
+      title: '系统日志',
+      path: '/system-logs',
+      description: '系统操作日志',
+      icon: '📋'
+    },
+    {
+      title: '用户管理',
+      path: '/users',
+      description: '用户信息管理',
+      icon: '👥',
+      count: stats['users']
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -218,7 +269,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Web3 会员中心 */}
-        <section>
+        <section className="mb-12">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Web3 会员中心</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {web3MenuItems.map((item) => (
@@ -231,6 +282,40 @@ export default function DashboardPage() {
                   <span className="text-3xl">{item.icon}</span>
                   {item.count !== undefined && (
                     <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                      {item.count}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {item.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* 新增功能 */}
+        <section>
+          <div className="flex items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900">新增功能</h2>
+            <span className="ml-3 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+              NEW
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {newFeatureItems.map((item) => (
+              <button
+                key={item.path}
+                onClick={() => router.push(item.path)}
+                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left border-2 border-purple-200"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-3xl">{item.icon}</span>
+                  {item.count !== undefined && (
+                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
                       {item.count}
                     </span>
                   )}
