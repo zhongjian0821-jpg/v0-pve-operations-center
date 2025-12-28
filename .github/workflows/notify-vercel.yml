@@ -1,0 +1,5 @@
+name: notify vercel
+uses: 'vercel/repository-dispatch/actions/status@v1'
+with:
+  name: Vercel - v0-pve-operations-center: lint
+  Vercel - v0-pve-operations-center: build
