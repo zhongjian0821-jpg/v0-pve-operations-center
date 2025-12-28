@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { db } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { comparePassword } from '@/lib/password';
 import { generateAdminToken } from '@/lib/auth';
 
@@ -14,10 +14,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [admins] = await db.query(
-      'SELECT * FROM admins WHERE username = ?',
-      [username]
-    );
+    // 使用 PostgreSQL 的 sql 模板标签
+    const admins = await sql`
+      SELECT * FROM admins WHERE username = ${username}
+    `;
 
     if (!Array.isArray(admins) || admins.length === 0) {
       return Response.json(
@@ -50,11 +50,12 @@ export async function POST(request: NextRequest) {
         admin: {
           id: admin.id,
           username: admin.username,
-          role: admin.role
+          role: admin.role,
+          email: admin.email
         }
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
     return Response.json(
       { success: false, error: 'Internal server error' },
