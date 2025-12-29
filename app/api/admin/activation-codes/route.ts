@@ -42,11 +42,11 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { wallet_address, blockchain } = body
+    const { wallet_address } = body
 
-    if (!wallet_address || !blockchain) {
+    if (!wallet_address) {
       return NextResponse.json(
-        { success: false, error: 'wallet_address and blockchain are required' },
+        { success: false, error: 'wallet_address is required' },
         { status: 400 }
       )
     }
@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
     const code = generateCode()
 
     await sql`
-      INSERT INTO activation_codes (code, wallet_address, blockchain)
-      VALUES (${code}, ${wallet_address}, ${blockchain})
+      INSERT INTO activation_codes (code, wallet_address, status)
+      VALUES (${code}, ${wallet_address}, 'unused')
     `
 
     return NextResponse.json({
