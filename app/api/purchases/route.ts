@@ -1,103 +1,72 @@
-// app/api/purchases/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
+
+import { type NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const address = searchParams.get('address');
+    const walletAddress = searchParams.get('wallet');
+    const status = searchParams.get('status');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
-    const status = searchParams.get('status');
 
-    if (!address) {
-      return NextResponse.json(
-        { success: false, error: '缺少钱包地址' },
-        { status: 400 }
-      );
+    let sql = `
+      SELECT 
+        node_id, wallet_address, node_type, purchase_price,
+        cpu_cores, memory_gb, storage_gb, status, tx_hash, created_at
+      FROM nodes
+      WHERE node_type IN ('cloud', 'image')
+    `;
+    
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (walletAddress) {
+      sql += ` AND LOWER(wallet_address) = LOWER($${paramIndex++})`;
+      params.push(walletAddress);
     }
-
-    console.log('[API] 查询购买记录:', { address, status, limit, offset });
-
-    // 构建查询条件
-    let whereConditions = ['LOWER(wallet_address) = LOWER($1)'];
-    const params: any[] = [address];
-    let paramIndex = 2;
 
     if (status) {
-      whereConditions.push(`status = $${paramIndex}`);
-      params.push(status);
-      paramIndex++;
+      if (status === 'completed') {
+        sql += ` AND status IN ('active', 'running')`;
+      } else if (status === 'pending') {
+        sql += ` AND status IN ('pending', 'deploying')`;
+      }
     }
 
+    sql += ` ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}`;
     params.push(limit, offset);
 
-    // 查询购买记录（从nodes表）
-    const purchases = await query(`
-      SELECT 
-        node_id,
-        wallet_address,
-        node_type,
-        status,
-        purchase_price,
-        staking_amount,
-        cpu_cores,
-        memory_gb,
-        storage_gb,
-        tx_hash,
-        created_at
-      FROM nodes
-      WHERE ${whereConditions.join(' AND ')}
-      ORDER BY created_at DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `, params);
+    const result = await query(sql, params);
 
-    // 统计信息
-    const stats = await query(`
-      SELECT 
-        COUNT(*) as total_count,
-        COALESCE(SUM(purchase_price), 0) as total_spent
-      FROM nodes
-      WHERE ${whereConditions.join(' AND ')}
-    `, params.slice(0, paramIndex - 2));
-
-    const formattedPurchases = purchases.map((purchase: any) => ({
-      id: purchase.node_id,
-      nodeId: purchase.node_id,
-      nodeType: purchase.node_type,
-      status: purchase.status,
-      price: parseFloat(purchase.purchase_price || '0'),
-      priceFormatted: `${parseFloat(purchase.purchase_price || '0').toFixed(2)} ASHVA`,
-      stakingAmount: parseFloat(purchase.staking_amount || '0'),
+    const purchases = result.map((p: any) => ({
+      id: p.node_id,
+      type: p.node_type,
+      walletAddress: p.wallet_address,
+      price: parseFloat(p.purchase_price || '0'),
       specs: {
-        cpu: purchase.cpu_cores,
-        memory: purchase.memory_gb,
-        storage: purchase.storage_gb
+        cpu: p.cpu_cores,
+        memory: p.memory_gb,
+        storage: p.storage_gb
       },
-      txHash: purchase.tx_hash,
-      purchaseDate: purchase.created_at
+      status: p.status,
+      txHash: p.tx_hash,
+      purchaseDate: p.created_at
     }));
 
     return NextResponse.json({
       success: true,
       data: {
-        purchases: formattedPurchases,
-        stats: {
-          total: parseInt(stats[0].total_count),
-          totalSpent: parseFloat(stats[0].total_spent),
-          totalSpentFormatted: `${parseFloat(stats[0].total_spent).toFixed(2)} ASHVA`
-        },
-        pagination: {
-          limit,
-          offset
-        }
+        total: purchases.length,
+        purchases: purchases
       }
     });
 
   } catch (error: any) {
-    console.error('[API] 查询购买记录失败:', error);
+    console.error('[API] 购买记录查询失败:', error);
     return NextResponse.json(
-      { success: false, error: error.message || '服务器错误' },
+      { success: false, error: error.message || '查询失败' },
       { status: 500 }
     );
   }
