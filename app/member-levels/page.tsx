@@ -27,7 +27,7 @@ interface MemberLevelFormData {
 
 export default function MemberLevelsManagementPage() {
   const router = useRouter();
-  const [member-levels, setMemberLevels] = useState<MemberLevel[]>([]);
+  const [memberLevels, setMemberLevels] = useState<MemberLevel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingMemberLevel, setEditingMemberLevel] = useState<MemberLevel | null>(null);
@@ -131,7 +131,7 @@ export default function MemberLevelsManagementPage() {
     }
   };
 
-  const filteredMemberLevels = member-levels.filter(wallet => {
+  const filteredMemberLevels = memberLevels.filter(wallet => {
     const matchesSearch = wallet.level_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterLevel === 'all' || wallet.member_level === filterLevel;
     return matchesSearch && matchesFilter;
@@ -214,19 +214,19 @@ export default function MemberLevelsManagementPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">总钱包数</div>
-            <div className="text-2xl font-bold text-white">{member-levels.length}</div>
+            <div className="text-2xl font-bold text-white">{memberLevels.length}</div>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">普通会员</div>
-            <div className="text-2xl font-bold text-gray-300">{member-levels.filter(w => w.member_level === 'normal').length}</div>
+            <div className="text-2xl font-bold text-gray-300">{memberLevels.filter(w => w.member_level === 'normal').length}</div>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">市场合伙人</div>
-            <div className="text-2xl font-bold text-blue-300">{member-levels.filter(w => w.member_level === 'market_partner').length}</div>
+            <div className="text-2xl font-bold text-blue-300">{memberLevels.filter(w => w.member_level === 'market_partner').length}</div>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">全球合伙人</div>
-            <div className="text-2xl font-bold text-purple-300">{member-levels.filter(w => w.member_level === 'global_partner').length}</div>
+            <div className="text-2xl font-bold text-purple-300">{memberLevels.filter(w => w.member_level === 'global_partner').length}</div>
           </div>
         </div>
 
