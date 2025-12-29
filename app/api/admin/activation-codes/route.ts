@@ -42,7 +42,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { wallet_address } = body
+    const { wallet_address, node_type = 'cosmos' } = body
 
     if (!wallet_address) {
       return NextResponse.json(
@@ -54,14 +54,16 @@ export async function POST(request: NextRequest) {
     const code = generateCode()
 
     await sql`
-      INSERT INTO activation_codes (code, wallet_address, status)
-      VALUES (${code}, ${wallet_address}, 'unused')
+      INSERT INTO activation_codes (code, wallet_address, node_type, status)
+      VALUES (${code}, ${wallet_address}, ${node_type}, 'unused')
     `
 
     return NextResponse.json({
       success: true,
       code: code,
-      message: 'Activation code generated'
+      wallet_address: wallet_address,
+      node_type: node_type,
+      message: 'Activation code generated successfully'
     })
   } catch (error: any) {
     console.error('Generate activation code error:', error)
