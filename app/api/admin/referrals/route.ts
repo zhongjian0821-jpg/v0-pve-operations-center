@@ -27,15 +27,15 @@ export async function GET(request: NextRequest) {
     `;
     
     const referrals = await query(referralsQuery, [limit, offset]);
-    const countResult = await query('SELECT COUNT(*) as total FROM wallets');
+    const countResult = await query('SELECT COUNT(*) as total FROM wallets', []);
     
     return NextResponse.json({
       success: true,
       data: {
-        referrals: referrals.rows,
+        referrals: referrals,
         pagination: {
           page, limit,
-          total: parseInt(countResult.rows[0]?.total || '0')
+          total: parseInt(countResult[0]?.total || '0')
         }
       }
     });
