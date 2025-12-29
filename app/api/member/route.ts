@@ -123,14 +123,13 @@ export async function GET(request: NextRequest) {
     // 3. 计算实际会员等级（基于ASHVA价值）
     const calculatedLevel = calculateMemberLevel(ashvaValueUSD);
 
-    // 4. 获取等级配置信息
+    // 4. 获取等级配置信息（只查询基础字段）
     const levelConfigResult = await query(
       `SELECT 
         level_name,
         display_name,
         max_depth,
         commission_total_percentage,
-        min_ashva_value_usd,
         description
       FROM member_level_config
       WHERE level_name = $1`,
@@ -188,15 +187,15 @@ export async function GET(request: NextRequest) {
       
       // 收益信息
       totalEarnings: parseFloat(wallet.total_earnings),
-      distributableCommission: parseFloat(wallet.distributable_commission),
-      distributedCommission: parseFloat(wallet.distributed_commission),
-      pendingWithdrawal: parseFloat(wallet.pending_withdrawal),
-      totalWithdrawn: parseFloat(wallet.total_withdrawn),
+      distributableCommission: parseFloat(wallet.distributable_commission || '0'),
+      distributedCommission: parseFloat(wallet.distributed_commission || '0'),
+      pendingWithdrawal: parseFloat(wallet.pending_withdrawal || '0'),
+      totalWithdrawn: parseFloat(wallet.total_withdrawn || '0'),
       
       // 佣金比例
-      selfCommissionRate: parseFloat(wallet.self_commission_rate),
-      commissionRateLevel1: parseFloat(wallet.commission_rate_level1),
-      commissionRateLevel2: parseFloat(wallet.commission_rate_level2),
+      selfCommissionRate: parseFloat(wallet.self_commission_rate || '0'),
+      commissionRateLevel1: parseFloat(wallet.commission_rate_level1 || '0'),
+      commissionRateLevel2: parseFloat(wallet.commission_rate_level2 || '0'),
       
       // 团队信息
       parentWallet: wallet.parent_wallet,
@@ -207,11 +206,7 @@ export async function GET(request: NextRequest) {
       updatedAt: wallet.updated_at,
     };
 
-    console.log('[API] 会员信息查询成功:', {
-      address: address.substring(0, 10) + '...',
-      level: calculatedLevel,
-      ashvaValueUSD: ashvaValueUSD.toFixed(2)
-    });
+    console.log('[API] 会员信息查询成功');
 
     return NextResponse.json({
       success: true,
