@@ -12,15 +12,12 @@ export async function GET() {
       GROUP BY status
     `
 
-    // 总体数据
+    // 总体数据（只使用已知存在的字段）
     const overview = await sql`
       SELECT 
         COUNT(*) as total,
-        COALESCE(AVG(cpu_cores), 0) as avg_cpu,
-        COALESCE(AVG(memory_total), 0) as avg_memory,
-        COALESCE(AVG(disk_total), 0) as avg_disk,
-        COALESCE(SUM(allocated_owner), 0) as total_owner_slots,
-        COALESCE(SUM(allocated_pool), 0) as total_pool_slots
+        COALESCE(SUM(allocated_slots), 0) as total_allocated_slots,
+        COALESCE(SUM(pool_slots), 0) as total_pool_slots
       FROM machines
     `
 
@@ -42,19 +39,16 @@ export async function GET() {
       success: true,
       data: {
         overview: {
-          total: overview[0]?.total || 0,
-          online: onlineMachines[0]?.count || 0,
-          avg_cpu: parseFloat(overview[0]?.avg_cpu || 0),
-          avg_memory: parseFloat(overview[0]?.avg_memory || 0),
-          avg_disk: parseFloat(overview[0]?.avg_disk || 0),
-          total_owner_slots: overview[0]?.total_owner_slots || 0,
-          total_pool_slots: overview[0]?.total_pool_slots || 0
+          total: parseInt(overview[0]?.total || 0),
+          online: parseInt(onlineMachines[0]?.count || 0),
+          total_allocated_slots: parseInt(overview[0]?.total_allocated_slots || 0),
+          total_pool_slots: parseInt(overview[0]?.total_pool_slots || 0)
         },
         statusDistribution: statusDistribution.map(item => ({
           status: item.status,
           count: parseInt(item.count)
         })),
-        recent24h: recentMachines[0]?.count || 0,
+        recent24h: parseInt(recentMachines[0]?.count || 0),
         timestamp: new Date().toISOString()
       }
     })
