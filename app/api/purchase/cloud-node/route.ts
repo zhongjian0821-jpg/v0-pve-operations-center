@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         'deploying',
         nodePriceAshva,
         stakingAmount || 0,
-        nodePrice USD,
+        nodePriceUSD,
         stakingAmount ? 'staked' : 'not_required',
         cpuCores,
         memoryGb,
