@@ -197,16 +197,11 @@ export default function DashboardPage() {
       count: stats['marketplace-transactions']
     },
     {
-      title: 'ASHVA价格',
-      path: '/ashva-price-history',
-      description: 'ASHVA价格历史',
-      icon: '📈'
-    },
-    {
-      title: '系统日志',
-      path: '/system-logs',
-      description: '系统操作日志',
-      icon: '📋'
+      title: '节点管理',
+      path: '/nodes',
+      description: '所有节点管理',
+      icon: '🖥️',
+      count: stats['nodes']
     },
     {
       title: '用户管理',
@@ -214,6 +209,20 @@ export default function DashboardPage() {
       description: '用户信息管理',
       icon: '👥',
       count: stats['users']
+    },
+    {
+      title: '设备管理',
+      path: '/devices',
+      description: '用户设备管理',
+      icon: '📱',
+      count: stats['devices']
+    },
+    {
+      title: '提现管理',
+      path: '/withdrawals',
+      description: '提现申请管理',
+      icon: '💸',
+      count: stats['withdrawals']
     }
   ];
 
