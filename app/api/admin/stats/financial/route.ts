@@ -8,7 +8,7 @@ export async function GET() {
     // 总收入（订单）
     const revenue = await sql`
       SELECT 
-        SUM(price) as total,
+        COALESCE(SUM(amount), 0) as total,
         COUNT(*) as order_count
       FROM orders
       WHERE status = 'completed'
@@ -17,15 +17,15 @@ export async function GET() {
     // 总提现
     const withdrawals = await sql`
       SELECT 
-        SUM(amount) as total,
+        COALESCE(SUM(amount), 0) as total,
         COUNT(*) as withdrawal_count,
-        SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as pending_amount
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
       FROM withdrawals
     `
 
     // 本月收入
     const monthlyRevenue = await sql`
-      SELECT SUM(price) as total
+      SELECT COALESCE(SUM(amount), 0) as total
       FROM orders
       WHERE status = 'completed'
         AND created_at >= DATE_TRUNC('month', CURRENT_DATE)
@@ -33,7 +33,7 @@ export async function GET() {
 
     // 本月提现
     const monthlyWithdrawals = await sql`
-      SELECT SUM(amount) as total
+      SELECT COALESCE(SUM(amount), 0) as total
       FROM withdrawals
       WHERE status = 'approved'
         AND created_at >= DATE_TRUNC('month', CURRENT_DATE)
@@ -42,25 +42,34 @@ export async function GET() {
     // 今日数据
     const today = await sql`
       SELECT 
-        (SELECT SUM(price) FROM orders 
+        (SELECT COALESCE(SUM(amount), 0) FROM orders 
          WHERE status = 'completed' AND created_at >= CURRENT_DATE) as revenue,
-        (SELECT SUM(amount) FROM withdrawals 
+        (SELECT COALESCE(SUM(amount), 0) FROM withdrawals 
          WHERE status = 'approved' AND created_at >= CURRENT_DATE) as withdrawals
     `
+
+    const totalRevenue = parseFloat(revenue[0]?.total || 0)
+    const totalWithdrawals = parseFloat(withdrawals[0]?.total || 0)
 
     return NextResponse.json({
       success: true,
       data: {
         total: {
-          revenue: revenue[0],
-          withdrawals: withdrawals[0],
-          profit: parseFloat(revenue[0]?.total || 0) - parseFloat(withdrawals[0]?.total || 0)
+          revenue: totalRevenue,
+          revenue_count: revenue[0]?.order_count || 0,
+          withdrawals: totalWithdrawals,
+          withdrawals_count: withdrawals[0]?.withdrawal_count || 0,
+          pending_withdrawals: parseFloat(withdrawals[0]?.pending_amount || 0),
+          profit: totalRevenue - totalWithdrawals
         },
         monthly: {
-          revenue: monthlyRevenue[0]?.total || 0,
-          withdrawals: monthlyWithdrawals[0]?.total || 0
+          revenue: parseFloat(monthlyRevenue[0]?.total || 0),
+          withdrawals: parseFloat(monthlyWithdrawals[0]?.total || 0)
         },
-        today: today[0],
+        today: {
+          revenue: parseFloat(today[0]?.revenue || 0),
+          withdrawals: parseFloat(today[0]?.withdrawals || 0)
+        },
         timestamp: new Date().toISOString()
       }
     })
