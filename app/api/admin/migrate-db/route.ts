@@ -2,11 +2,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+interface MigrationResults {
+  success: string[];
+  errors: string[];
+  warnings: string[];
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🚀 开始执行P0数据库迁移...');
     
-    const results = {
+    const results: MigrationResults = {
       success: [],
       errors: [],
       warnings: []
@@ -23,7 +29,7 @@ export async function POST(request: NextRequest) {
       `, []);
       results.success.push('✅ wallets表字段精度修改成功');
     } catch (e: any) {
-      if (e.message.includes('already')) {
+      if (e.message.includes('already') || e.message.includes('cannot be cast')) {
         results.warnings.push('⚠️  wallets表字段已是正确类型');
       } else {
         results.errors.push(`❌ wallets表修改失败: ${e.message}`);
@@ -45,7 +51,8 @@ export async function POST(request: NextRequest) {
         await query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS ${col}`, []);
         results.success.push(`✅ wallets.${colName}添加成功`);
       } catch (e: any) {
-        results.warnings.push(`⚠️  wallets.${col.split(' ')[0]}可能已存在`);
+        const colName = col.split(' ')[0];
+        results.warnings.push(`⚠️  wallets.${colName}可能已存在`);
       }
     }
 
@@ -71,7 +78,8 @@ export async function POST(request: NextRequest) {
         await query(`ALTER TABLE nodes ADD COLUMN IF NOT EXISTS ${col}`, []);
         results.success.push(`✅ nodes.${colName}添加成功`);
       } catch (e: any) {
-        results.warnings.push(`⚠️  nodes.${col.split(' ')[0]}可能已存在`);
+        const colName = col.split(' ')[0];
+        results.warnings.push(`⚠️  nodes.${colName}可能已存在`);
       }
     }
 
