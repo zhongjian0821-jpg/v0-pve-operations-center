@@ -28,7 +28,7 @@ export async function GET() {
       SELECT COUNT(DISTINCT wallet_address) as total FROM wallets
     `
 
-    // 提现统计
+    // 提现统计（使用 amount）
     const withdrawals = await sql`
       SELECT 
         COUNT(*) as total,
@@ -38,12 +38,12 @@ export async function GET() {
       FROM withdrawals
     `
 
-    // 订单统计
+    // 订单统计（使用 price）
     const orders = await sql`
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-        COALESCE(SUM(amount), 0) as total_revenue
+        COALESCE(SUM(price), 0) as total_revenue
       FROM orders
     `
 
