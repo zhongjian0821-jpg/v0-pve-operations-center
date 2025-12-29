@@ -1,36 +1,6 @@
-"use client"
+'use client'
 
 import { useEffect, useState } from 'react'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogTrigger 
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { 
-  Play, 
-  Square, 
-  Trash2, 
-  FileText, 
-  Plus,
-  Loader2,
-  Cloud,
-  Server
-} from 'lucide-react'
-import { toast } from 'sonner'
 
 interface Node {
   id: number
@@ -41,7 +11,6 @@ interface Node {
   status: string
   machine_id?: string
   port?: number
-  node_type?: string
   created_at: string
 }
 
@@ -49,12 +18,11 @@ export default function CloudHostingPage() {
   const [nodes, setNodes] = useState<Node[]>([])
   const [loading, setLoading] = useState(true)
   const [deploying, setDeploying] = useState(false)
-  const [deployDialogOpen, setDeployDialogOpen] = useState(false)
-  const [logsDialogOpen, setLogsDialogOpen] = useState(false)
+  const [showDeployDialog, setShowDeployDialog] = useState(false)
+  const [showLogsDialog, setShowLogsDialog] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [logs, setLogs] = useState('')
   
-  // 表单状态
   const [formData, setFormData] = useState({
     name: '',
     blockchain: 'cosmos',
@@ -62,7 +30,6 @@ export default function CloudHostingPage() {
     port: 26657,
   })
 
-  // 加载节点列表
   useEffect(() => {
     fetchNodes()
   }, [])
@@ -81,10 +48,9 @@ export default function CloudHostingPage() {
     }
   }
 
-  // 部署节点
   async function deployNode() {
     if (!formData.name || !formData.blockchain) {
-      toast.error('请填写节点名称和区块链类型')
+      alert('请填写节点名称和区块链类型')
       return
     }
 
@@ -101,21 +67,20 @@ export default function CloudHostingPage() {
       
       const data = await res.json()
       if (data.success) {
-        toast.success('节点部署成功')
-        setDeployDialogOpen(false)
+        alert('节点部署成功')
+        setShowDeployDialog(false)
         setFormData({ name: '', blockchain: 'cosmos', machineId: '', port: 26657 })
         fetchNodes()
       } else {
-        toast.error(data.error || '部署失败')
+        alert('部署失败: ' + (data.error || ''))
       }
     } catch (error: any) {
-      toast.error(error.message)
+      alert('错误: ' + error.message)
     } finally {
       setDeploying(false)
     }
   }
 
-  // 启动节点
   async function startNode(node: Node) {
     try {
       const res = await fetch('/api/blockchain', {
@@ -129,17 +94,16 @@ export default function CloudHostingPage() {
       
       const data = await res.json()
       if (data.success) {
-        toast.success('节点启动成功')
+        alert('节点启动成功')
         fetchNodes()
       } else {
-        toast.error(data.error || '启动失败')
+        alert('启动失败: ' + (data.error || ''))
       }
     } catch (error: any) {
-      toast.error(error.message)
+      alert('错误: ' + error.message)
     }
   }
 
-  // 停止节点
   async function stopNode(node: Node) {
     try {
       const res = await fetch('/api/blockchain', {
@@ -153,17 +117,16 @@ export default function CloudHostingPage() {
       
       const data = await res.json()
       if (data.success) {
-        toast.success('节点已停止')
+        alert('节点已停止')
         fetchNodes()
       } else {
-        toast.error(data.error || '停止失败')
+        alert('停止失败: ' + (data.error || ''))
       }
     } catch (error: any) {
-      toast.error(error.message)
+      alert('错误: ' + error.message)
     }
   }
 
-  // 删除节点
   async function deleteNode(node: Node) {
     if (!confirm(`确定要删除节点 ${node.name} 吗？`)) return
     
@@ -179,20 +142,19 @@ export default function CloudHostingPage() {
       
       const data = await res.json()
       if (data.success) {
-        toast.success('节点已删除')
+        alert('节点已删除')
         fetchNodes()
       } else {
-        toast.error(data.error || '删除失败')
+        alert('删除失败: ' + (data.error || ''))
       }
     } catch (error: any) {
-      toast.error(error.message)
+      alert('错误: ' + error.message)
     }
   }
 
-  // 查看日志
   async function viewLogs(node: Node) {
     setSelectedNode(node)
-    setLogsDialogOpen(true)
+    setShowLogsDialog(true)
     setLogs('加载中...')
     
     try {
@@ -208,8 +170,7 @@ export default function CloudHostingPage() {
     }
   }
 
-  // 状态徽章颜色
-  function getStatusBadge(status: string) {
+  function getStatusColor(status: string) {
     const colors: Record<string, string> = {
       'running': 'bg-green-500',
       'pending': 'bg-yellow-500',
@@ -223,199 +184,209 @@ export default function CloudHostingPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="text-lg">加载中...</div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="p-8">
       {/* 页面标题 */}
-      <div className="flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Cloud className="h-8 w-8" />
-            区块链节点托管
-          </h1>
+          <h1 className="text-3xl font-bold">区块链节点托管</h1>
           <p className="text-gray-600 mt-1">
             管理和部署区块链节点 ({nodes.length} 个节点)
           </p>
         </div>
 
-        {/* 部署按钮 */}
-        <Dialog open={deployDialogOpen} onOpenChange={setDeployDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              部署节点
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>部署新节点</DialogTitle>
-            </DialogHeader>
+        <button
+          onClick={() => setShowDeployDialog(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          + 部署节点
+        </button>
+      </div>
+
+      {/* 节点列表 */}
+      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="px-6 py-4 bg-gray-50 border-b">
+          <h2 className="text-xl font-semibold">节点列表</h2>
+        </div>
+        
+        {nodes.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            暂无节点，点击“部署节点”创建第一个节点
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">节点名称</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">区块链</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">端口</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {nodes.map(node => (
+                  <tr key={node.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">{node.id}</td>
+                    <td className="px-6 py-4 font-medium">{node.name}</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 text-xs rounded border">{node.blockchain}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 text-xs rounded text-white ${getStatusColor(node.status)}`}>
+                        {node.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">{node.port || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {new Date(node.created_at).toLocaleString('zh-CN')}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-end gap-2">
+                        {node.status !== 'running' && (
+                          <button
+                            onClick={() => startNode(node)}
+                            className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                            title="启动"
+                          >
+                            ▶️
+                          </button>
+                        )}
+                        {node.status === 'running' && (
+                          <button
+                            onClick={() => stopNode(node)}
+                            className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                            title="停止"
+                          >
+                            ⏹️
+                          </button>
+                        )}
+                        <button
+                          onClick={() => viewLogs(node)}
+                          className="px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                          title="查看日志"
+                        >
+                          📄
+                        </button>
+                        <button
+                          onClick={() => deleteNode(node)}
+                          className="px-3 py-1 text-sm border rounded hover:bg-red-50 text-red-600"
+                          title="删除"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 部署对话框 */}
+      {showDeployDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4">部署新节点</h3>
+            
             <div className="space-y-4">
               <div>
-                <Label>节点名称</Label>
-                <Input 
+                <label className="block text-sm font-medium mb-1">节点名称</label>
+                <input
+                  type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   placeholder="cosmos-mainnet-1"
+                  className="w-full px-3 py-2 border rounded"
                 />
               </div>
               
               <div>
-                <Label>区块链类型</Label>
-                <Select value={formData.blockchain} onValueChange={(v) => setFormData({...formData, blockchain: v})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cosmos">Cosmos</SelectItem>
-                    <SelectItem value="polygon">Polygon</SelectItem>
-                    <SelectItem value="near">NEAR</SelectItem>
-                    <SelectItem value="sui">Sui</SelectItem>
-                    <SelectItem value="ethereum">Ethereum</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label className="block text-sm font-medium mb-1">区块链类型</label>
+                <select
+                  value={formData.blockchain}
+                  onChange={(e) => setFormData({...formData, blockchain: e.target.value})}
+                  className="w-full px-3 py-2 border rounded"
+                >
+                  <option value="cosmos">Cosmos</option>
+                  <option value="polygon">Polygon</option>
+                  <option value="near">NEAR</option>
+                  <option value="sui">Sui</option>
+                  <option value="ethereum">Ethereum</option>
+                </select>
               </div>
 
               <div>
-                <Label>机器ID (可选)</Label>
-                <Input 
+                <label className="block text-sm font-medium mb-1">机器ID (可选)</label>
+                <input
+                  type="text"
                   value={formData.machineId}
                   onChange={(e) => setFormData({...formData, machineId: e.target.value})}
                   placeholder="machine-1"
+                  className="w-full px-3 py-2 border rounded"
                 />
               </div>
 
               <div>
-                <Label>端口</Label>
-                <Input 
+                <label className="block text-sm font-medium mb-1">端口</label>
+                <input
                   type="number"
                   value={formData.port}
                   onChange={(e) => setFormData({...formData, port: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border rounded"
                 />
               </div>
 
-              <Button 
-                onClick={deployNode} 
-                disabled={deploying}
-                className="w-full"
-              >
-                {deploying ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 部署中...</>
-                ) : (
-                  <>部署</>
-                )}
-              </Button>
+              <div className="flex gap-2 pt-4">
+                <button
+                  onClick={deployNode}
+                  disabled={deploying}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {deploying ? '部署中...' : '部署'}
+                </button>
+                <button
+                  onClick={() => setShowDeployDialog(false)}
+                  className="px-4 py-2 border rounded hover:bg-gray-50"
+                >
+                  取消
+                </button>
+              </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* 节点列表 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Server className="h-5 w-5" />
-            节点列表
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {nodes.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              暂无节点，点击“部署节点”创建第一个节点
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">ID</th>
-                    <th className="text-left p-2">节点名称</th>
-                    <th className="text-left p-2">区块链</th>
-                    <th className="text-left p-2">状态</th>
-                    <th className="text-left p-2">端口</th>
-                    <th className="text-left p-2">创建时间</th>
-                    <th className="text-right p-2">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {nodes.map(node => (
-                    <tr key={node.id} className="border-b hover:bg-gray-50">
-                      <td className="p-2">{node.id}</td>
-                      <td className="p-2 font-medium">{node.name}</td>
-                      <td className="p-2">
-                        <Badge variant="outline">{node.blockchain}</Badge>
-                      </td>
-                      <td className="p-2">
-                        <Badge className={getStatusBadge(node.status)}>
-                          {node.status}
-                        </Badge>
-                      </td>
-                      <td className="p-2">{node.port || '-'}</td>
-                      <td className="p-2">
-                        {new Date(node.created_at).toLocaleString('zh-CN')}
-                      </td>
-                      <td className="p-2">
-                        <div className="flex justify-end gap-2">
-                          {node.status !== 'running' && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => startNode(node)}
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {node.status === 'running' && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => stopNode(node)}
-                            >
-                              <Square className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => viewLogs(node)}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => deleteNode(node)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      )}
 
       {/* 日志对话框 */}
-      <Dialog open={logsDialogOpen} onOpenChange={setLogsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedNode?.name} - 节点日志
-            </DialogTitle>
-          </DialogHeader>
-          <div className="bg-black text-green-400 p-4 rounded font-mono text-sm overflow-auto max-h-96">
-            <pre>{logs}</pre>
+      {showLogsDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">{selectedNode?.name} - 节点日志</h3>
+              <button
+                onClick={() => setShowLogsDialog(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex-1 bg-black text-green-400 p-4 rounded font-mono text-sm overflow-auto">
+              <pre>{logs}</pre>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   )
 }
