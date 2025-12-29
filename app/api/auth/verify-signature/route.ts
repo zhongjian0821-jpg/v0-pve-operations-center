@@ -1,6 +1,7 @@
-// app/api/auth/verify-signature/route.ts
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { ethers } from 'ethers';
+import { verifyMessage } from 'ethers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,9 +15,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证签名
-    const recoveredAddress = ethers.verifyMessage(message, signature);
+    const recoveredAddress = verifyMessage(message, signature);
 
     if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+      console.error('[API] 签名验证失败:', {
+        expected: address,
+        recovered: recoveredAddress
+      });
       return NextResponse.json(
         { success: false, error: '签名验证失败' },
         { status: 401 }
@@ -34,7 +39,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('[API] 签名验证失败:', error);
+    console.error('[API] 签名验证错误:', error);
     return NextResponse.json(
       { success: false, error: error.message || '验证失败' },
       { status: 500 }
