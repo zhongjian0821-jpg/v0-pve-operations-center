@@ -2,10 +2,6 @@ import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { successResponse, errorResponse, requireAdmin } from '@/lib/api-utils';
 
-/**
- * GET - 查询价格历史
- * 参数: type=realtime|daily_high|all, days=30
- */
 export async function GET(request: NextRequest) {
   try {
     requireAdmin(request);
@@ -14,11 +10,15 @@ export async function GET(request: NextRequest) {
     const priceType = searchParams.get('type') || 'all';
     const days = parseInt(searchParams.get('days') || '30');
     
+    // 计算日期
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
     let records;
     if (priceType === 'all') {
       records = await sql`
         SELECT * FROM ashva_price_history 
-        WHERE created_at >= NOW() - INTERVAL '${sql.raw(days + ' days')}'
+        WHERE created_at >= ${startDate.toISOString()}
         ORDER BY created_at DESC 
         LIMIT 1000
       `;
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       records = await sql`
         SELECT * FROM ashva_price_history 
         WHERE price_type = ${priceType}
-          AND created_at >= NOW() - INTERVAL '${sql.raw(days + ' days')}'
+          AND created_at >= ${startDate.toISOString()}
         ORDER BY created_at DESC 
         LIMIT 1000
       `;
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         AVG(price_usd) as avg_price,
         COUNT(*) as total_records
       FROM ashva_price_history
-      WHERE created_at >= NOW() - INTERVAL '${sql.raw(days + ' days')}'
+      WHERE created_at >= ${startDate.toISOString()}
     `;
     
     return successResponse({
@@ -52,9 +52,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST - 手动添加价格记录
- */
 export async function POST(request: NextRequest) {
   try {
     requireAdmin(request);
@@ -78,9 +75,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * DELETE - 删除价格记录
- */
 export async function DELETE(request: NextRequest) {
   try {
     requireAdmin(request);
