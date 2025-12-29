@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function ImagenodepurchasesPage() {
+export default function DevicesPage() {
   const router = useRouter();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ export default function ImagenodepurchasesPage() {
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/admin/image-node-purchases', {
+      const response = await fetch('/api/admin/devices', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -40,8 +40,8 @@ export default function ImagenodepurchasesPage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">镜像节点购买管理</h1>
-          <p className="text-gray-500 mt-1">管理镜像节点购买记录</p>
+          <h1 className="text-2xl font-bold">设备管理</h1>
+          <p className="text-gray-500 mt-1">管理用户设备</p>
         </div>
         <button 
           onClick={() => router.push('/dashboard')} 
