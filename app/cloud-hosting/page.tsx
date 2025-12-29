@@ -190,9 +190,9 @@ export default function CloudHostingPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="min-h-screen bg-gray-50 p-8">
       {/* 页面标题 */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="bg-white shadow-sm rounded-lg px-6 py-4 mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">区块链节点托管</h1>
           <p className="text-gray-600 mt-1">
