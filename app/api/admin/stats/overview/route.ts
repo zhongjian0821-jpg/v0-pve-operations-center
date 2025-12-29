@@ -34,7 +34,7 @@ export async function GET() {
         COUNT(*) as total,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
-        SUM(amount) as total_amount
+        COALESCE(SUM(amount), 0) as total_amount
       FROM withdrawals
     `
 
@@ -43,18 +43,37 @@ export async function GET() {
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-        SUM(price) as total_revenue
+        COALESCE(SUM(amount), 0) as total_revenue
       FROM orders
     `
 
     return NextResponse.json({
       success: true,
       data: {
-        machines: machines[0],
-        nodes: nodes[0],
-        users: wallets[0],
-        withdrawals: withdrawals[0],
-        orders: orders[0],
+        machines: {
+          total: machines[0]?.total || 0,
+          online: machines[0]?.online || 0,
+          offline: machines[0]?.offline || 0
+        },
+        nodes: {
+          total: nodes[0]?.total || 0,
+          running: nodes[0]?.running || 0,
+          stopped: nodes[0]?.stopped || 0
+        },
+        users: {
+          total: wallets[0]?.total || 0
+        },
+        withdrawals: {
+          total: withdrawals[0]?.total || 0,
+          pending: withdrawals[0]?.pending || 0,
+          approved: withdrawals[0]?.approved || 0,
+          total_amount: parseFloat(withdrawals[0]?.total_amount || 0)
+        },
+        orders: {
+          total: orders[0]?.total || 0,
+          completed: orders[0]?.completed || 0,
+          total_revenue: parseFloat(orders[0]?.total_revenue || 0)
+        },
         timestamp: new Date().toISOString()
       }
     })
