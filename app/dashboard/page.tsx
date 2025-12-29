@@ -174,14 +174,7 @@ export default function DashboardPage() {
       description: '管理和部署区块链节点',
       icon: '🛠️'
     },
-
     {
-    {
-      title: '区块链节点托管',
-      path: '/cloud-hosting',
-      description: '管理和部署区块链节点',
-      icon: '🛠️'
-    },
       title: '云节点购买',
       path: '/cloud-node-purchases',
       description: '云节点购买记录',
