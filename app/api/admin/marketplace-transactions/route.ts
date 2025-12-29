@@ -43,55 +43,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
-  try {
-    requireAdmin(request);
-    const body = await request.json();
-    const { id, ...updateData } = body;
-    
-    if (!id) return errorResponse("id is required", 400);
-    
-    const fields = ["status", "transaction_hash"];
-    const updates: string[] = [];
-    const values: any[] = [];
-    
-    fields.forEach(field => {
-      if (updateData[field] !== undefined) {
-        updates.push(field);
-        values.push(updateData[field]);
-      }
-    });
-    
-    if (updates.length === 0) return errorResponse("No fields to update", 400);
-    
-    const setClause = updates.map((f, i) => `${f} = $${i + 1}`).join(", ");
-    values.push(id);
-    
-    const result = await sql.query(
-      `UPDATE marketplace_transactions SET ${setClause}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`,
-      values
-    );
-    
-    if (result.rows.length === 0) return errorResponse("Record not found", 404);
-    return successResponse(result.rows[0]);
-  } catch (error: any) {
-    return errorResponse(error.message, 500);
-  }
 }
 
-export async function DELETE(request: NextRequest) {
-  try {
-    requireAdmin(request);
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    
-    if (!id) return errorResponse("id is required", 400);
-    
-    const result = await sql`DELETE FROM marketplace_transactions WHERE id = ${id} RETURNING *`;
-    if (result.length === 0) return errorResponse("Record not found", 404);
-    
-    return successResponse({ message: "Transaction deleted successfully", deleted: result[0] });
-  } catch (error: any) {
-    return errorResponse(error.message, 500);
-  }
 }
