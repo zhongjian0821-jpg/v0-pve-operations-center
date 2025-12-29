@@ -5,70 +5,71 @@ const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET() {
   try {
-    // 总收入（订单 - 使用 price 字段）
-    const revenue = await sql`
+    // 只统计数量，不涉及金额字段
+    const orders = await sql`
       SELECT 
-        COALESCE(SUM(price), 0) as total,
-        COUNT(*) as order_count
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
       FROM orders
-      WHERE status = 'completed'
     `
 
-    // 总提现（使用 amount 字段）
     const withdrawals = await sql`
       SELECT 
-        COALESCE(SUM(amount), 0) as total,
-        COUNT(*) as withdrawal_count,
-        COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
       FROM withdrawals
     `
 
-    // 本月收入
-    const monthlyRevenue = await sql`
-      SELECT COALESCE(SUM(price), 0) as total
+    // 本月数据
+    const monthlyOrders = await sql`
+      SELECT COUNT(*) as total
       FROM orders
       WHERE status = 'completed'
         AND created_at >= DATE_TRUNC('month', CURRENT_DATE)
     `
 
-    // 本月提现
     const monthlyWithdrawals = await sql`
-      SELECT COALESCE(SUM(amount), 0) as total
+      SELECT COUNT(*) as total
       FROM withdrawals
       WHERE status = 'approved'
         AND created_at >= DATE_TRUNC('month', CURRENT_DATE)
     `
 
     // 今日数据
-    const today = await sql`
-      SELECT 
-        (SELECT COALESCE(SUM(price), 0) FROM orders 
-         WHERE status = 'completed' AND created_at >= CURRENT_DATE) as revenue,
-        (SELECT COALESCE(SUM(amount), 0) FROM withdrawals 
-         WHERE status = 'approved' AND created_at >= CURRENT_DATE) as withdrawals
+    const todayOrders = await sql`
+      SELECT COUNT(*) as count
+      FROM orders
+      WHERE status = 'completed' AND created_at >= CURRENT_DATE
     `
 
-    const totalRevenue = parseFloat(revenue[0]?.total || 0)
-    const totalWithdrawals = parseFloat(withdrawals[0]?.total || 0)
+    const todayWithdrawals = await sql`
+      SELECT COUNT(*) as count
+      FROM withdrawals
+      WHERE status = 'approved' AND created_at >= CURRENT_DATE
+    `
 
     return NextResponse.json({
       success: true,
       data: {
         total: {
-          revenue: totalRevenue,
-          revenue_count: revenue[0]?.order_count || 0,
-          withdrawals: totalWithdrawals,
-          withdrawals_count: withdrawals[0]?.withdrawal_count || 0,
-          pending_withdrawals: parseFloat(withdrawals[0]?.pending_amount || 0),
-          profit: totalRevenue - totalWithdrawals
+          orders: parseInt(orders[0]?.total || 0),
+          orders_completed: parseInt(orders[0]?.completed || 0),
+          orders_pending: parseInt(orders[0]?.pending || 0),
+          withdrawals: parseInt(withdrawals[0]?.total || 0),
+          withdrawals_pending: parseInt(withdrawals[0]?.pending || 0),
+          withdrawals_approved: parseInt(withdrawals[0]?.approved || 0),
+          withdrawals_rejected: parseInt(withdrawals[0]?.rejected || 0)
         },
         monthly: {
-          revenue: parseFloat(monthlyRevenue[0]?.total || 0),
-          withdrawals: parseFloat(monthlyWithdrawals[0]?.total || 0)
+          orders: parseInt(monthlyOrders[0]?.total || 0),
+          withdrawals: parseInt(monthlyWithdrawals[0]?.total || 0)
         },
         today: {
-          revenue: parseFloat(today[0]?.revenue || 0),
-          withdrawals: parseFloat(today[0]?.withdrawals || 0)
+          orders: parseInt(todayOrders[0]?.count || 0),
+          withdrawals: parseInt(todayWithdrawals[0]?.count || 0)
         },
         timestamp: new Date().toISOString()
       }
