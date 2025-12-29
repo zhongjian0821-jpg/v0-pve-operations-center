@@ -5,16 +5,16 @@ const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET() {
   try {
-    // 总收入（订单）
+    // 总收入（订单 - 使用 price 字段）
     const revenue = await sql`
       SELECT 
-        COALESCE(SUM(amount), 0) as total,
+        COALESCE(SUM(price), 0) as total,
         COUNT(*) as order_count
       FROM orders
       WHERE status = 'completed'
     `
 
-    // 总提现
+    // 总提现（使用 amount 字段）
     const withdrawals = await sql`
       SELECT 
         COALESCE(SUM(amount), 0) as total,
@@ -25,7 +25,7 @@ export async function GET() {
 
     // 本月收入
     const monthlyRevenue = await sql`
-      SELECT COALESCE(SUM(amount), 0) as total
+      SELECT COALESCE(SUM(price), 0) as total
       FROM orders
       WHERE status = 'completed'
         AND created_at >= DATE_TRUNC('month', CURRENT_DATE)
@@ -42,7 +42,7 @@ export async function GET() {
     // 今日数据
     const today = await sql`
       SELECT 
-        (SELECT COALESCE(SUM(amount), 0) FROM orders 
+        (SELECT COALESCE(SUM(price), 0) FROM orders 
          WHERE status = 'completed' AND created_at >= CURRENT_DATE) as revenue,
         (SELECT COALESCE(SUM(amount), 0) FROM withdrawals 
          WHERE status = 'approved' AND created_at >= CURRENT_DATE) as withdrawals
