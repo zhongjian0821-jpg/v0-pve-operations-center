@@ -16,11 +16,11 @@ export async function GET() {
     const overview = await sql`
       SELECT 
         COUNT(*) as total,
-        AVG(cpu_usage) as avg_cpu,
-        AVG(memory_usage) as avg_memory,
-        AVG(disk_usage) as avg_disk,
-        SUM(allocated_owner) as total_owner_slots,
-        SUM(allocated_pool) as total_pool_slots
+        COALESCE(AVG(cpu_cores), 0) as avg_cpu,
+        COALESCE(AVG(memory_total), 0) as avg_memory,
+        COALESCE(AVG(disk_total), 0) as avg_disk,
+        COALESCE(SUM(allocated_owner), 0) as total_owner_slots,
+        COALESCE(SUM(allocated_pool), 0) as total_pool_slots
       FROM machines
     `
 
@@ -31,12 +31,30 @@ export async function GET() {
       WHERE activated_at >= NOW() - INTERVAL '24 hours'
     `
 
+    // 在线机器数
+    const onlineMachines = await sql`
+      SELECT COUNT(*) as count
+      FROM machines
+      WHERE status = 'online'
+    `
+
     return NextResponse.json({
       success: true,
       data: {
-        overview: overview[0],
-        statusDistribution,
-        recent24h: recentMachines[0],
+        overview: {
+          total: overview[0]?.total || 0,
+          online: onlineMachines[0]?.count || 0,
+          avg_cpu: parseFloat(overview[0]?.avg_cpu || 0),
+          avg_memory: parseFloat(overview[0]?.avg_memory || 0),
+          avg_disk: parseFloat(overview[0]?.avg_disk || 0),
+          total_owner_slots: overview[0]?.total_owner_slots || 0,
+          total_pool_slots: overview[0]?.total_pool_slots || 0
+        },
+        statusDistribution: statusDistribution.map(item => ({
+          status: item.status,
+          count: parseInt(item.count)
+        })),
+        recent24h: recentMachines[0]?.count || 0,
         timestamp: new Date().toISOString()
       }
     })
