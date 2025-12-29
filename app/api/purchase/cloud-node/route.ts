@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     console.log('[API] 购买云节点:', { walletAddress, nodeCount, cpuCores, memoryGb, storageGb });
 
     // 云节点价格：2000 USD
-    const nodePrice USD = 2000;
+    const nodePriceUSD = 2000;
     const ashvaPrice = parseFloat(process.env.NEXT_PUBLIC_ASHVA_PRICE || '0.00008291');
     const nodePriceAshva = nodePriceUSD / ashvaPrice;
     const totalPriceAshva = nodePriceAshva * nodeCount;
