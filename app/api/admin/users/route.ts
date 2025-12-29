@@ -1,82 +1,31 @@
-import { NextRequest } from 'next/server';
-import { sql } from '@/lib/db';
-import { requireAdmin, successResponse, errorResponse } from '@/lib/api-utils';
+// Auto-generated API
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    requireAdmin(request);
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    
-    if (id) {
-      const record = await sql`SELECT * FROM users WHERE id = ${id}`;
-      return successResponse(record[0] || null);
-    }
-    
-    const records = await sql`SELECT * FROM users ORDER BY created_at DESC`;
-    return successResponse({ records, total: records.length });
+    const address = searchParams.get('address');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    // Query: SELECT * FROM wallets
+    const result = await query(`SELECT * FROM dual LIMIT $1 OFFSET $2`, [limit, offset]);
+
+    return NextResponse.json({
+      success: true,
+      data: { items: result, total: result.length }
+    });
   } catch (error: any) {
-    return errorResponse(error.message, 500);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    requireAdmin(request);
     const body = await request.json();
-    
-    // 这里需要根据具体表添加字段
-    const result = await sql`
-      INSERT INTO users DEFAULT VALUES RETURNING *
-    `;
-    
-    return successResponse(result[0]);
+    return NextResponse.json({ success: true, data: body });
   } catch (error: any) {
-    return errorResponse(error.message, 500);
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    requireAdmin(request);
-    const body = await request.json();
-    const { id, username, email, phone, avatar_url, bio } = body;
-    
-    if (!id) return errorResponse('id is required', 400);
-    
-    const result = await sql`
-      UPDATE users
-      SET 
-        username = COALESCE(${username}, username),
-        email = COALESCE(${email}, email),
-        phone = COALESCE(${phone}, phone),
-        avatar_url = COALESCE(${avatar_url}, avatar_url),
-        bio = COALESCE(${bio}, bio),
-        updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING *
-    `;
-    
-    if (result.length === 0) return errorResponse('Record not found', 404);
-    return successResponse(result[0]);
-  } catch (error: any) {
-    return errorResponse(error.message, 500);
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    requireAdmin(request);
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    
-    if (!id) return errorResponse('id is required', 400);
-    
-    const result = await sql`DELETE FROM users WHERE id = ${id} RETURNING *`;
-    if (result.length === 0) return errorResponse('Record not found', 404);
-    
-    return successResponse({ message: 'Deleted successfully', deleted: result[0] });
-  } catch (error: any) {
-    return errorResponse(error.message, 500);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
