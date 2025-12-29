@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
       ORDER BY date DESC
     `;
 
-    const result = await query(financialQuery);
+    const result = await query(financialQuery, []);
 
     return NextResponse.json({
       success: true,
       data: {
-        financialData: result.rows,
+        financialData: result,
         period: `${days} days`
       }
     });
