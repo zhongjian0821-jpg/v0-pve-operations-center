@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+interface FixResults {
+  success: string[];
+  warnings: string[];
+  errors: string[];
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🔧 开始修复数据库schema...');
     
-    const results = {
+    const results: FixResults = {
       success: [],
       warnings: [],
       errors: []
@@ -92,11 +98,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: results.errors.length === 0,
       message: 'Schema修复完成',
-      results: {
-        success: results.success,
-        warnings: results.warnings,
-        errors: results.errors
-      },
+      results: results,
       finalSchema: finalCheck,
       summary: {
         totalFields: finalCheck.length,
