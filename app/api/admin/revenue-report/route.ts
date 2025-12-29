@@ -1,23 +1,26 @@
-// app/api/admin/revenue-report/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
+import { type NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const days = parseInt(searchParams.get('days') || '30');
+    const filter = searchParams.get('wallet_address') || searchParams.get('wallet');
+    const limit = parseInt(searchParams.get('limit') || '50');
     
-    const revenue = await query(`
-      SELECT 
-        DATE(created_at) as date,
-        SUM(purchase_price) as daily_revenue
-      FROM nodes
-      WHERE created_at >= CURRENT_DATE - INTERVAL '${days} days'
-      GROUP BY DATE(created_at)
-      ORDER BY date DESC
-    `, []);
+    let sql = `SELECT * FROM nodes`;
+    const params: any[] = [];
     
-    return NextResponse.json({ success: true, data: { revenue, period: `${days} days` } });
+    if (filter) {
+      sql += ` WHERE LOWER(wallet_address) = LOWER($1) LIMIT $2`;
+      params.push(filter, limit);
+    } else {
+      sql += ` LIMIT $1`;
+      params.push(limit);
+    }
+    
+    const result = await query(sql, params);
+    return NextResponse.json({ success: true, data: { items: result, total: result.length } });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
