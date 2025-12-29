@@ -7,20 +7,13 @@ export async function GET(request: NextRequest) {
     requireAdmin(request);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const status = searchParams.get('status');
     
     if (id) {
       const record = await sql`SELECT * FROM marketplace_listings WHERE id = ${id}`;
       return successResponse(record[0] || null);
     }
     
-    let query = sql`SELECT * FROM marketplace_listings WHERE 1=1`;
-    if (status) {
-      query = sql`${query} AND status = ${status}`;
-    }
-    query = sql`${query} ORDER BY created_at DESC`;
-    
-    const records = await query;
+    const records = await sql`SELECT * FROM marketplace_listings ORDER BY created_at DESC`;
     return successResponse({ records, total: records.length });
   } catch (error: any) {
     return errorResponse(error.message, 500);
@@ -31,25 +24,14 @@ export async function POST(request: NextRequest) {
   try {
     requireAdmin(request);
     const body = await request.json();
-    const { seller_address, node_id, price, description, status = 'active' } = body;
     
-    if (!seller_address || !node_id || !price) {
-      return errorResponse('seller_address, node_id, and price are required', 400);
-    }
-    
+    // 这里需要根据具体表添加字段
     const result = await sql`
-      INSERT INTO marketplace_listings (
-        seller_address, node_id, price, description, status, created_at, updated_at
-      ) VALUES (
-        ${seller_address}, ${node_id}, ${price}, ${description}, ${status}, NOW(), NOW()
-      ) RETURNING *
+      INSERT INTO marketplace_listings DEFAULT VALUES RETURNING *
     `;
-    return successResponse(result[0], 201);
+    
+    return successResponse(result[0]);
   } catch (error: any) {
     return errorResponse(error.message, 500);
   }
-}
-
-}
-
 }

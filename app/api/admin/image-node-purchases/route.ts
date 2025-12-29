@@ -24,25 +24,14 @@ export async function POST(request: NextRequest) {
   try {
     requireAdmin(request);
     const body = await request.json();
-    const { wallet_address, image_type, device_id, price, transaction_hash, status = 'pending' } = body;
     
-    if (!wallet_address || !image_type) {
-      return errorResponse('wallet_address and image_type are required', 400);
-    }
-    
+    // 这里需要根据具体表添加字段
     const result = await sql`
-      INSERT INTO image_node_purchases (
-        wallet_address, image_type, device_id, price, transaction_hash, status, created_at, updated_at
-      ) VALUES (
-        ${wallet_address}, ${image_type}, ${device_id}, ${price}, ${transaction_hash}, ${status}, NOW(), NOW()
-      ) RETURNING *
+      INSERT INTO image_node_purchases DEFAULT VALUES RETURNING *
     `;
-    return successResponse(result[0], 201);
+    
+    return successResponse(result[0]);
   } catch (error: any) {
     return errorResponse(error.message, 500);
   }
-}
-
-}
-
 }

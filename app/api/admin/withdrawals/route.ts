@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         ${wallet_address}, ${amount}, ${status}, NOW(), NOW()
       ) RETURNING *
     `;
-    return successResponse(result[0], 201);
+    return successResponse(result[0]);
   } catch (error: any) {
     return errorResponse(error.message, 500);
   }
