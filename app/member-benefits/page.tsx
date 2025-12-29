@@ -1,157 +1,104 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2 } from "lucide-react"
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-interface Benefit {
-  id: number
-  level: string
-  name: string
-  description: string
-  value: string
-  icon: string
-}
-
-export default function MemberBenefitsPage() {
-  const [benefits, setBenefits] = useState<Benefit[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isOpen, setIsOpen] = useState(false)
-  const [editingBenefit, setEditingBenefit] = useState<Benefit | null>(null)
+export default function 会员权益配置Page() {
+  const router = useRouter();
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadBenefits()
-  }, [])
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    loadData();
+  }, [router]);
 
-  const loadBenefits = async () => {
+  const loadData = async () => {
     try {
-      // TODO: 替换为实际API
-      const mockData: Benefit[] = [
-        { id: 1, level: "普通会员", name: "基础收益", description: "享受基础收益分配", value: "100%", icon: "💰" },
-        { id: 2, level: "银牌会员", name: "提升收益", description: "收益提升10%", value: "110%", icon: "🥈" },
-        { id: 3, level: "金牌会员", name: "高级收益", description: "收益提升20%", value: "120%", icon: "🥇" },
-        { id: 4, level: "钻石会员", name: "VIP收益", description: "收益提升30%", value: "130%", icon: "💎" }
-      ]
-      setBenefits(mockData)
+      // TODO: 替换为实际API调用
+      setData([]);
     } catch (error) {
-      console.error("加载权益失败:", error)
+      console.error('加载数据失败:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
-  const handleEdit = (benefit: Benefit) => {
-    setEditingBenefit(benefit)
-    setIsOpen(true)
-  }
-
-  const handleDelete = async (id: number) => {
-    if (confirm("确定要删除这个权益吗？")) {
-      // TODO: 调用删除API
-      setBenefits(benefits.filter(b => b.id !== id))
-    }
-  }
+  };
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">会员权益配置</h1>
-          <p className="text-muted-foreground mt-1">管理不同等级会员的专属权益</p>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <span>💎</span>
+            会员权益配置
+          </h1>
+          <p className="text-gray-600 mt-2">配置不同等级会员的具体权益</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingBenefit(null)}>
-              <Plus className="mr-2 h-4 w-4" />
-              添加权益
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingBenefit ? "编辑权益" : "添加权益"}</DialogTitle>
-              <DialogDescription>配置会员等级的专属权益内容</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>会员等级</Label>
-                <Input placeholder="例如：金牌会员" />
-              </div>
-              <div className="grid gap-2">
-                <Label>权益名称</Label>
-                <Input placeholder="例如：收益加成" />
-              </div>
-              <div className="grid gap-2">
-                <Label>权益描述</Label>
-                <Input placeholder="详细描述此权益" />
-              </div>
-              <div className="grid gap-2">
-                <Label>权益值</Label>
-                <Input placeholder="例如：120%" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsOpen(false)}>取消</Button>
-              <Button onClick={() => setIsOpen(false)}>保存</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>权益列表</CardTitle>
-          <CardDescription>共 {benefits.length} 项会员权益</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">会员权益配置</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={loadData}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                刷新
+              </button>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                新建
+              </button>
+            </div>
+          </div>
+
           {loading ? (
-            <div className="text-center py-8">加载中...</div>
+            <div className="text-center py-12 text-gray-500">
+              加载中...
+            </div>
+          ) : data.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-6xl mb-4">💎</p>
+              <p className="text-gray-500">暂无数据</p>
+              <p className="text-sm text-gray-400 mt-2">点击"新建"按钮添加第一条记录</p>
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>图标</TableHead>
-                  <TableHead>会员等级</TableHead>
-                  <TableHead>权益名称</TableHead>
-                  <TableHead>权益描述</TableHead>
-                  <TableHead>权益值</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {benefits.map((benefit) => (
-                  <TableRow key={benefit.id}>
-                    <TableCell><span className="text-2xl">{benefit.icon}</span></TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{benefit.level}</Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">{benefit.name}</TableCell>
-                    <TableCell>{benefit.description}</TableCell>
-                    <TableCell>
-                      <Badge>{benefit.value}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(benefit)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(benefit.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">名称</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.map((item: any) => (
+                    <tr key={item.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.created_at}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button className="text-blue-600 hover:text-blue-900">查看</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
-  )
+  );
 }
