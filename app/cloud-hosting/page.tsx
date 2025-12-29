@@ -306,7 +306,7 @@ export default function CloudHostingPage() {
                 {deploying ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 部署中...</>
                 ) : (
-                  <>部署</ >
+                  <>部署</>
                 )}
               </Button>
             </div>
