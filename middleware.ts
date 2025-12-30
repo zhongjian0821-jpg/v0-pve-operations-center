@@ -52,11 +52,9 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
-// 配置matcher - 只对API路由应用CORS
+// 配置matcher - 只对API路由应用CORS（修复：移除对页面路由的匹配）
 export const config = {
   matcher: [
     '/api/:path*',
-    // 排除静态文件和Next.js内部路由
-    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
