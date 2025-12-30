@@ -106,7 +106,7 @@ class ApiClient {
 
   // Orders
   async getOrders() {
-    return this.request<any>('/api/admin/orders');
+    return this.request<any>('/api/orders');
   }
 }
 
