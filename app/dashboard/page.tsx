@@ -1,6 +1,5 @@
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
 
 export default function Dashboard() {
@@ -141,12 +140,6 @@ export default function Dashboard() {
     }
   ];
 
-  // 使用原生点击处理，而不是Next.js Link
-  const handleCardClick = (link: string) => {
-    console.log('Navigating to:', link);
-    window.location.href = link;
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -163,41 +156,38 @@ export default function Dashboard() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {section.cards.map((card, cardIndex) => (
-                <div
+                <a
                   key={`card-${sectionIndex}-${cardIndex}`}
-                  onClick={() => handleCardClick(card.link)}
-                  className="block cursor-pointer"
+                  href={card.link}
+                  className="block bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 p-6 relative overflow-hidden group"
                 >
-                  <Card className="h-full bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-200 overflow-hidden group">
-                    <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
-                    
-                    <CardContent className="p-6 relative">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="text-4xl">
-                          {card.icon}
-                        </div>
-                        {card.badge && (
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-br ${card.color}`}>
-                            {card.badge}
-                          </span>
-                        )}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
+                  
+                  <div className="relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="text-4xl">
+                        {card.icon}
                       </div>
-                      
-                      <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                        {card.title}
-                      </h3>
-                      
-                      <p className="text-sm text-gray-600">
-                        {card.description}
-                      </p>
-                      
-                      {/* 显示目标URL用于调试 */}
-                      <p className="text-xs text-blue-500 mt-2">
-                        → {card.link}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
+                      {card.badge && (
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-br ${card.color}`}>
+                          {card.badge}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <h3 className="font-bold text-lg text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                      {card.title}
+                    </h3>
+                    
+                    <p className="text-sm text-gray-600 mb-2">
+                      {card.description}
+                    </p>
+                    
+                    <p className="text-xs font-mono text-blue-500 bg-blue-50 px-2 py-1 rounded">
+                      → {card.link}
+                    </p>
+                  </div>
+                </a>
               ))}
             </div>
           </div>
