@@ -1,9 +1,7 @@
 'use client';
-// Force rebuild at 1767100021
 
 import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 
 interface DashboardCard {
   icon: string;
@@ -15,20 +13,6 @@ interface DashboardCard {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({ members: 36, nodes: 0, orders: 0 });
-
-  useEffect(() => {
-    // 获取实时统计
-    fetch('/api/members')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setStats(prev => ({ ...prev, members: data.data.total || 36 }));
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   const sections = [
     {
       title: '会员管理',
@@ -38,7 +22,7 @@ export default function Dashboard() {
           title: '会员管理',
           description: '查看和管理所有会员信息',
           link: '/admin/members',
-          badge: stats.members,
+          badge: 36,
           color: 'from-blue-500 to-blue-600'
         },
         {
@@ -107,7 +91,6 @@ export default function Dashboard() {
           title: '订单管理',
           description: '管理所有订单',
           link: '/admin/orders',
-          badge: stats.orders,
           color: 'from-blue-500 to-blue-600'
         },
         {
@@ -188,7 +171,7 @@ export default function Dashboard() {
                         <div className={`text-4xl bg-gradient-to-br ${card.color} bg-clip-text`}>
                           {card.icon}
                         </div>
-                        {card.badge !== undefined && card.badge > 0 && (
+                        {card.badge && (
                           <span className={`px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-br ${card.color}`}>
                             {card.badge}
                           </span>
