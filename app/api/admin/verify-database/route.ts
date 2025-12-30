@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log('开始验证数据库...');
 
-    const verification = {
+    const verification: any = {
       timestamp: new Date().toISOString(),
       summary: {},
       tables: [],
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // 2. 检查每个表的详细信息
     for (const table of tables) {
-      const tableName = table.table_name;
+      const tableName = table.table_name as string;
       
       try {
         // 获取列信息
@@ -52,11 +52,9 @@ export async function GET(request: NextRequest) {
         `;
 
         // 获取行数
-        const countResult = await sql`
-          SELECT COUNT(*) as count 
-          FROM ${sql(tableName)}
-        `;
-        const rowCount = parseInt(countResult[0]?.count || '0');
+        const countQuery = `SELECT COUNT(*) as count FROM ${tableName}`;
+        const countResult = await sql.unsafe(countQuery);
+        const rowCount = parseInt(String(countResult[0]?.count || '0'));
 
         // 获取索引
         const indexes = await sql`
@@ -130,16 +128,14 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. 获取一些示例数据（每个表最多3行）
-    for (const table of verification.tables.slice(0, 10)) { // 只取前10个表
-      if (table.rows > 0) {
+    for (const tableInfo of verification.tables.slice(0, 10)) {
+      if (tableInfo.rows > 0) {
         try {
-          const samples = await sql`
-            SELECT * FROM ${sql(table.name)}
-            LIMIT 3
-          `;
+          const query = `SELECT * FROM ${tableInfo.name} LIMIT 3`;
+          const samples = await sql.unsafe(query);
           
           verification.data_samples.push({
-            table: table.name,
+            table: tableInfo.name,
             sample_count: samples.length,
             samples: samples,
           });
@@ -241,20 +237,19 @@ export async function POST(request: NextRequest) {
     `;
 
     // 获取表数据统计
-    const stats = await sql`
+    const statsQuery = `
       SELECT 
         COUNT(*) as total_rows,
-        pg_size_pretty(pg_total_relation_size(${table_name}::regclass)) as total_size,
-        pg_size_pretty(pg_relation_size(${table_name}::regclass)) as table_size,
-        pg_size_pretty(pg_indexes_size(${table_name}::regclass)) as indexes_size
-      FROM ${sql(table_name)}
+        pg_size_pretty(pg_total_relation_size('${table_name}'::regclass)) as total_size,
+        pg_size_pretty(pg_relation_size('${table_name}'::regclass)) as table_size,
+        pg_size_pretty(pg_indexes_size('${table_name}'::regclass)) as indexes_size
+      FROM ${table_name}
     `;
+    const stats = await sql.unsafe(statsQuery);
 
     // 获取示例数据
-    const samples = await sql`
-      SELECT * FROM ${sql(table_name)}
-      LIMIT 5
-    `;
+    const samplesQuery = `SELECT * FROM ${table_name} LIMIT 5`;
+    const samples = await sql.unsafe(samplesQuery);
 
     return NextResponse.json({
       success: true,
