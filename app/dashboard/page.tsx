@@ -154,7 +154,7 @@ export default function Dashboard() {
           icon: '📋',
           title: '交易记录',
           description: '查看所有交易历史',
-          link: '/admin/transaction-logs',
+          link: '/transactions',
           color: 'from-teal-500 to-teal-600'
         }
       ]
