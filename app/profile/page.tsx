@@ -1,4 +1,3 @@
-
 'use client';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const address = localStorage.getItem('wallet_address');
     if (address) {
-      fetch(\`/api/member?address=\${address}\`)
+      fetch(`/api/member?address=${address}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) setProfile(data.data);
