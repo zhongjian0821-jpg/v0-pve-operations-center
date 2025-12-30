@@ -48,14 +48,14 @@ export default function Dashboard() {
         {
           icon: '💰',
           title: '钱包管理',
-          description: '管理用户钱包和余额',
-          link: '/wallet',
+          description: '查看所有会员钱包',
+          link: '/wallets',
           color: 'from-yellow-500 to-yellow-600'
         },
         {
           icon: '💎',
           title: '佣金中心',
-          description: '佣金管理和分配记录',
+          description: '佣金管理和分配',
           link: '/commissions',
           badge: 10,
           color: 'from-amber-500 to-amber-600'
@@ -63,15 +63,15 @@ export default function Dashboard() {
         {
           icon: '💵',
           title: '收益中心',
-          description: '节点收益和佣金收益',
+          description: '节点收益和佣金',
           link: '/earnings',
           color: 'from-emerald-500 to-emerald-600'
         },
         {
           icon: '🏦',
           title: '提现管理',
-          description: '管理用户提现申请',
-          link: '/admin/withdrawals',
+          description: '提现申请处理',
+          link: '/withdrawals',
           color: 'from-cyan-500 to-cyan-600'
         }
       ]
@@ -89,22 +89,22 @@ export default function Dashboard() {
         {
           icon: '📦',
           title: '订单管理',
-          description: '管理所有订单',
-          link: '/admin/orders',
+          description: '查看所有订单',
+          link: '/orders',
           color: 'from-blue-500 to-blue-600'
         },
         {
           icon: '🛒',
           title: '转让市场',
-          description: '节点买卖交易市场',
+          description: '节点转让交易',
           link: '/marketplace',
           color: 'from-pink-500 to-pink-600'
         },
         {
           icon: '📝',
-          title: '节点列表',
-          description: '查看和管理用户节点',
-          link: '/admin/node-purchases',
+          title: '节点购买',
+          description: '节点购买记录',
+          link: '/purchases',
           color: 'from-violet-500 to-violet-600'
         }
       ]
@@ -115,28 +115,28 @@ export default function Dashboard() {
         {
           icon: '📊',
           title: '数据总览',
-          description: '查看系统数据统计',
+          description: '系统数据统计',
           link: '/admin/dashboard',
           color: 'from-red-500 to-red-600'
         },
         {
           icon: '⛓️',
-          title: '区块链管理',
-          description: '区块链配置和监控',
+          title: '区块链配置',
+          description: '区块链设置',
           link: '/admin/blockchain',
           color: 'from-slate-500 to-slate-600'
         },
         {
           icon: '📈',
           title: '报表中心',
-          description: '数据分析和报表',
+          description: '数据分析报表',
           link: '/admin/reports',
           color: 'from-orange-500 to-orange-600'
         },
         {
           icon: '📋',
           title: '交易记录',
-          description: '查看所有交易历史',
+          description: '所有交易历史',
           link: '/transactions',
           color: 'from-teal-500 to-teal-600'
         }
@@ -156,7 +156,7 @@ export default function Dashboard() {
         {/* 功能模块 */}
         {sections.map((section, idx) => (
           <div key={idx} className="mb-10">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
               {section.title}
             </h2>
             
