@@ -3,15 +3,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 
-interface DashboardCard {
-  icon: string;
-  title: string;
-  description: string;
-  link: string;
-  badge?: number;
-  color: string;
-}
-
 export default function Dashboard() {
   const sections = [
     {
@@ -147,28 +138,30 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* 头部 */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">PVE运营中心</h1>
           <p className="text-gray-600">欢迎回来，admin</p>
         </div>
 
-        {/* 功能模块 */}
-        {sections.map((section, idx) => (
-          <div key={idx} className="mb-10">
+        {sections.map((section, sectionIndex) => (
+          <div key={sectionIndex} className="mb-10">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               {section.title}
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {section.cards.map((card, cardIdx) => (
-                <Link key={cardIdx} href={card.link}>
+              {section.cards.map((card, cardIndex) => (
+                <Link 
+                  key={cardIndex} 
+                  href={card.link}
+                  className="block"
+                >
                   <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer border-0 overflow-hidden group">
                     <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
                     
                     <CardContent className="p-6 relative">
                       <div className="flex items-start justify-between mb-4">
-                        <div className={`text-4xl bg-gradient-to-br ${card.color} bg-clip-text`}>
+                        <div className={`text-4xl`}>
                           {card.icon}
                         </div>
                         {card.badge && (
@@ -193,7 +186,6 @@ export default function Dashboard() {
           </div>
         ))}
 
-        {/* 页脚 */}
         <div className="mt-12 text-center text-sm text-gray-500">
           <p>数据实时更新于: {new Date().toLocaleString('zh-CN')}</p>
         </div>
