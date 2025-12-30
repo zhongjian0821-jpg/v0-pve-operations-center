@@ -1,337 +1,442 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { 
+  Wallet, 
+  Clock, 
+  CheckCircle, 
+  XCircle,
+  AlertCircle,
+  DollarSign,
+  Flame,
+  ExternalLink
+} from 'lucide-react'
 
-interface Purchase {
-  id: number;
-  wallet_address: string;
-  node_type: string;
-  quantity: number;
-  price_per_node: number;
-  total_price: number;
-  transaction_hash: string;
-  status: string;
-  created_at: string;
+interface Withdrawal {
+  id: number
+  wallet_address: string
+  amount: string
+  amount_usd: string
+  burn_rate: string
+  burn_amount: string
+  actual_amount: string
+  status: string
+  tx_hash: string | null
+  reject_reason: string | null
+  member_level: string
+  created_at: string
+  processed_at: string | null
 }
 
-export default function CloudNodePurchasesPage() {
-  const router = useRouter();
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+interface Stats {
+  total_count: string
+  total_amount: string
+  total_actual_amount: string
+  pending_count: string
+  completed_count: string
+  rejected_count: string
+  processing_count: string
+}
+
+export default function WithdrawalsPage() {
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null)
+  const [actionDialog, setActionDialog] = useState(false)
+  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null)
+  const [txHash, setTxHash] = useState('')
+  const [rejectReason, setRejectReason] = useState('')
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    fetchPurchases();
-  }, [router]);
+    fetchWithdrawals()
+  }, [statusFilter])
 
-  const fetchPurchases = async () => {
+  const fetchWithdrawals = async () => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/admin/withdrawals', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
+      setLoading(true)
+      
+      let url = '/api/withdrawals?'
+      if (statusFilter !== 'all') {
+        url += `status=${statusFilter}`
+      }
+      
+      const response = await fetch(url)
+      const data = await response.json()
+      
       if (data.success) {
-        setPurchases(data.data.records || []);
+        setWithdrawals(data.data.records)
+        setStats(data.data.stats)
       }
     } catch (error) {
-      console.error('获取数据失败:', error);
+      console.error('获取提现记录失败:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const handleCreate = async (formData: any) => {
+  const handleAction = async () => {
+    if (!selectedWithdrawal || !actionType) return
+
     try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/admin/withdrawals', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-      const data = await response.json();
-      if (data.success) {
-        fetchPurchases();
-        setShowModal(false);
-        alert('创建成功！');
-      } else {
-        alert('创建失败：' + data.error);
+      const body: any = {
+        id: selectedWithdrawal.id,
+        status: actionType === 'approve' ? 'completed' : 'rejected'
       }
-    } catch (error) {
-      alert('创建失败');
-    }
-  };
 
-  const handleUpdate = async (formData: any) => {
-    try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch('/api/admin/withdrawals', {
+      if (actionType === 'approve' && txHash) {
+        body.tx_hash = txHash
+      }
+
+      if (actionType === 'reject' && rejectReason) {
+        body.reject_reason = rejectReason
+      }
+
+      const response = await fetch('/api/withdrawals', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ id: editingPurchase?.id, ...formData })
-      });
-      const data = await response.json();
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+
+      const data = await response.json()
+
       if (data.success) {
-        fetchPurchases();
-        setShowModal(false);
-        setEditingPurchase(null);
-        alert('更新成功！');
-      } else {
-        alert('更新失败：' + data.error);
+        setActionDialog(false)
+        setSelectedWithdrawal(null)
+        setTxHash('')
+        setRejectReason('')
+        fetchWithdrawals()
       }
     } catch (error) {
-      alert('更新失败');
+      console.error('操作失败:', error)
     }
-  };
+  }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除这条记录吗？')) return;
+  const getStatusBadge = (status: string) => {
+    const configs: Record<string, { label: string; variant: any; icon: any }> = {
+      pending: { 
+        label: '待处理', 
+        variant: 'secondary',
+        icon: <Clock className="w-3 h-3" />
+      },
+      processing: { 
+        label: '处理中', 
+        variant: 'default',
+        icon: <AlertCircle className="w-3 h-3" />
+      },
+      completed: { 
+        label: '已完成', 
+        variant: 'default',
+        icon: <CheckCircle className="w-3 h-3" />
+      },
+      rejected: { 
+        label: '已拒绝', 
+        variant: 'destructive',
+        icon: <XCircle className="w-3 h-3" />
+      }
+    }
     
-    try {
-      const token = localStorage.getItem('admin_token');
-      const response = await fetch(`/api/admin/withdrawals?id=${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        fetchPurchases();
-        alert('删除成功！');
-      } else {
-        alert('删除失败：' + data.error);
-      }
-    } catch (error) {
-      alert('删除失败');
-    }
-  };
+    const config = configs[status] || configs.pending
+    
+    return (
+      <Badge variant={config.variant} className="flex items-center gap-1">
+        {config.icon}
+        {config.label}
+      </Badge>
+    )
+  }
 
-  const filteredPurchases = purchases.filter(p => {
-    const matchesSearch = p.wallet_address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         p.node_type.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const stats = {
-    total: purchases.length,
-    pending: purchases.filter(p => p.status === 'pending').length,
-    completed: purchases.filter(p => p.status === 'completed').length,
-    totalValue: purchases.reduce((sum, p) => sum + Number(p.total_price || 0), 0)
-  };
-
-  if (loading) return <div className="p-8">加载中...</div>;
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-4 text-gray-600">加载提现记录...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">提现管理</h1>
-          <p className="text-gray-500 mt-1">管理提现记录</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => router.push('/dashboard')} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">返回</button>
-          <button onClick={() => { setEditingPurchase(null); setShowModal(true); }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ 新建购买记录</button>
-        </div>
+    <div className="container mx-auto p-6 space-y-6">
+      {/* 标题 */}
+      <div>
+        <h1 className="text-3xl font-bold">提现管理</h1>
+        <p className="text-gray-600 mt-2">管理用户提现申请和记录</p>
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-500">总记录数</div>
-          <div className="text-2xl font-bold mt-1">{stats.total}</div>
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600">总提现次数</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{stats.total_count}</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-yellow-200 bg-yellow-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-yellow-700 flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                待处理
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-yellow-700">{stats.pending_count}</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-green-200 bg-green-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-green-700 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" />
+                已完成
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-700">{stats.completed_count}</div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-blue-200 bg-blue-50/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-blue-700">总提现金额</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-700">
+                {parseFloat(stats.total_actual_amount).toLocaleString()}
+              </div>
+              <p className="text-xs text-gray-600 mt-1">ASHVA</p>
+            </CardContent>
+          </Card>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-500">待处理</div>
-          <div className="text-2xl font-bold mt-1 text-yellow-600">{stats.pending}</div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-500">已完成</div>
-          <div className="text-2xl font-bold mt-1 text-green-600">{stats.completed}</div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-500">总金额</div>
-          <div className="text-2xl font-bold mt-1">${stats.totalValue.toFixed(2)}</div>
-        </div>
-      </div>
-
-      {/* 搜索和筛选 */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-4">
-        <div className="flex gap-4">
-          <input
-            type="text"
-            placeholder="搜索钱包地址或节点类型..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-4 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-          >
-            <option value="all">全部状态</option>
-            <option value="pending">待处理</option>
-            <option value="completed">已完成</option>
-            <option value="failed">失败</option>
-          </select>
-        </div>
-      </div>
-
-      {/* 数据表格 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-700">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">钱包地址</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">节点类型</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">数量</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">总价</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredPurchases.map((purchase) => (
-              <tr key={purchase.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-4 py-3 text-sm">{purchase.id}</td>
-                <td className="px-4 py-3 text-sm font-mono">{purchase.wallet_address?.slice(0, 10)}...</td>
-                <td className="px-4 py-3 text-sm">{purchase.node_type}</td>
-                <td className="px-4 py-3 text-sm">{purchase.quantity}</td>
-                <td className="px-4 py-3 text-sm">${purchase.total_price}</td>
-                <td className="px-4 py-3 text-sm">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    purchase.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    purchase.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {purchase.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm">
-                  <button onClick={() => { setEditingPurchase(purchase); setShowModal(true); }} className="text-blue-600 hover:underline mr-2">编辑</button>
-                  <button onClick={() => handleDelete(purchase.id)} className="text-red-600 hover:underline">删除</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* 模态框 */}
-      {showModal && (
-        <PurchaseModal
-          purchase={editingPurchase}
-          onClose={() => { setShowModal(false); setEditingPurchase(null); }}
-          onSubmit={editingPurchase ? handleUpdate : handleCreate}
-        />
       )}
-    </div>
-  );
-}
 
-function PurchaseModal({ purchase, onClose, onSubmit }: any) {
-  const [formData, setFormData] = useState({
-    wallet_address: purchase?.wallet_address || '',
-    node_type: purchase?.node_type || 'cloud',
-    quantity: purchase?.quantity || 1,
-    price_per_node: purchase?.price_per_node || 2000,
-    total_price: purchase?.total_price || 2000,
-    transaction_hash: purchase?.transaction_hash || '',
-    status: purchase?.status || 'pending'
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">{purchase ? '编辑购买记录' : '新建购买记录'}</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">钱包地址</label>
-            <input
-              type="text"
-              value={formData.wallet_address}
-              onChange={(e) => setFormData({...formData, wallet_address: e.target.value})}
-              className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">节点类型</label>
-            <input
-              type="text"
-              value={formData.node_type}
-              onChange={(e) => setFormData({...formData, node_type: e.target.value})}
-              className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">数量</label>
-            <input
-              type="number"
-              value={formData.quantity}
-              onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value)})}
-              className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">单价</label>
-            <input
-              type="number"
-              value={formData.price_per_node}
-              onChange={(e) => setFormData({...formData, price_per_node: parseFloat(e.target.value)})}
-              className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">总价</label>
-            <input
-              type="number"
-              value={formData.total_price}
-              onChange={(e) => setFormData({...formData, total_price: parseFloat(e.target.value)})}
-              className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">状态</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({...formData, status: e.target.value})}
-              className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+      {/* 筛选器 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>状态筛选</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Button
+              variant={statusFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('all')}
             >
-              <option value="pending">待处理</option>
-              <option value="completed">已完成</option>
-              <option value="failed">失败</option>
-            </select>
+              全部
+            </Button>
+            <Button
+              variant={statusFilter === 'pending' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('pending')}
+            >
+              待处理
+            </Button>
+            <Button
+              variant={statusFilter === 'processing' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('processing')}
+            >
+              处理中
+            </Button>
+            <Button
+              variant={statusFilter === 'completed' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('completed')}
+            >
+              已完成
+            </Button>
+            <Button
+              variant={statusFilter === 'rejected' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('rejected')}
+            >
+              已拒绝
+            </Button>
           </div>
-          <div className="flex gap-2 pt-4">
-            <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">提交</button>
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">取消</button>
-          </div>
-        </form>
+        </CardContent>
+      </Card>
+
+      {/* 提现列表 */}
+      <div className="space-y-4">
+        {withdrawals.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-gray-500">暂无提现记录</p>
+            </CardContent>
+          </Card>
+        ) : (
+          withdrawals.map((withdrawal) => (
+            <Card key={withdrawal.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Wallet className="w-5 h-5 text-blue-500" />
+                    <div>
+                      <CardTitle className="text-lg">提现 #{withdrawal.id}</CardTitle>
+                      <CardDescription className="mt-1">
+                        {withdrawal.wallet_address.slice(0, 10)}...{withdrawal.wallet_address.slice(-8)}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {getStatusBadge(withdrawal.status)}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm text-gray-600">申请金额</p>
+                    <p className="text-lg font-semibold">
+                      {parseFloat(withdrawal.amount).toLocaleString()} ASHVA
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      ≈ ${parseFloat(withdrawal.amount_usd).toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                      <Flame className="w-3 h-3 text-orange-500" />
+                      燃烧金额
+                    </p>
+                    <p className="text-lg font-semibold text-orange-600">
+                      {parseFloat(withdrawal.burn_amount).toLocaleString()} ASHVA
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {(parseFloat(withdrawal.burn_rate) * 100).toFixed(1)}% 燃烧率
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">实际到账</p>
+                    <p className="text-lg font-semibold text-green-600">
+                      {parseFloat(withdrawal.actual_amount).toLocaleString()} ASHVA
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">创建时间</p>
+                    <p className="text-sm font-medium">
+                      {new Date(withdrawal.created_at).toLocaleString('zh-CN')}
+                    </p>
+                  </div>
+                </div>
+                
+                {withdrawal.tx_hash && (
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-600">交易哈希</p>
+                    <p className="text-sm font-mono flex items-center gap-2">
+                      {withdrawal.tx_hash}
+                      <ExternalLink className="w-3 h-3" />
+                    </p>
+                  </div>
+                )}
+                
+                {withdrawal.reject_reason && (
+                  <div className="mb-3">
+                    <p className="text-sm text-red-600">拒绝原因</p>
+                    <p className="text-sm">{withdrawal.reject_reason}</p>
+                  </div>
+                )}
+                
+                {withdrawal.status === 'pending' && (
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedWithdrawal(withdrawal)
+                        setActionType('approve')
+                        setActionDialog(true)
+                      }}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      批准
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setSelectedWithdrawal(withdrawal)
+                        setActionType('reject')
+                        setActionDialog(true)
+                      }}
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      拒绝
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
+
+      {/* 操作对话框 */}
+      <Dialog open={actionDialog} onOpenChange={setActionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {actionType === 'approve' ? '批准提现' : '拒绝提现'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedWithdrawal && (
+                <span>
+                  提现金额: {parseFloat(selectedWithdrawal.actual_amount).toLocaleString()} ASHVA
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {actionType === 'approve' && (
+              <div>
+                <Label htmlFor="tx_hash">交易哈希</Label>
+                <Input
+                  id="tx_hash"
+                  placeholder="0x..."
+                  value={txHash}
+                  onChange={(e) => setTxHash(e.target.value)}
+                />
+              </div>
+            )}
+            
+            {actionType === 'reject' && (
+              <div>
+                <Label htmlFor="reject_reason">拒绝原因</Label>
+                <Input
+                  id="reject_reason"
+                  placeholder="请输入拒绝原因"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActionDialog(false)}>
+              取消
+            </Button>
+            <Button onClick={handleAction}>
+              确认
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
+  )
 }
