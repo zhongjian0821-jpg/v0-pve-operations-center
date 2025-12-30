@@ -5,152 +5,134 @@ function successResponse(data: any, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
 }
 
-function errorResponse(message: string, status = 500, details?: any) {
-  console.error(`[PVE Orders API] Error: ${message}`, details);
-  return NextResponse.json({ success: false, error: message, details }, { status });
+function errorResponse(message: string, status = 500) {
+  console.error(`[Orders API] Error: ${message}`);
+  return NextResponse.json({ success: false, error: message }, { status });
 }
 
 // GET - 查询订单
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const node_type = searchParams.get('node_type');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const statusFilter = searchParams.get('status');
+    const nodeTypeFilter = searchParams.get('type'); // hosting 或 image
     
-    // 构建 WHERE 条件
-    const conditions: string[] = [];
-    const params: any[] = [];
-    let paramIndex = 1;
-    
-    if (status) {
-      conditions.push(`status = $${paramIndex}`);
-      params.push(status);
-      paramIndex++;
-    }
-    
-    if (node_type) {
-      conditions.push(`node_type = $${paramIndex}`);
-      params.push(node_type);
-      paramIndex++;
-    }
-    
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    
-    // 查询订单
-    const ordersQuery = `
-      SELECT * FROM nodes 
-      ${whereClause}
-      ORDER BY created_at DESC 
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    // 查询所有订单
+    const orders = await sql`
+      SELECT 
+        n.*,
+        w.member_level,
+        w.ashva_balance
+      FROM nodes n
+      LEFT JOIN wallets w ON LOWER(n.wallet_address) = LOWER(w.wallet_address)
+      ORDER BY n.created_at DESC
     `;
     
-    params.push(limit, offset);
+    // 在应用层过滤
+    let filteredOrders = orders;
     
-    const orders = await sql(ordersQuery, params);
+    if (statusFilter) {
+      filteredOrders = filteredOrders.filter((o: any) => o.status === statusFilter);
+    }
+    
+    if (nodeTypeFilter) {
+      if (nodeTypeFilter === 'hosting') {
+        filteredOrders = filteredOrders.filter((o: any) => o.node_type === 'cloud');
+      } else if (nodeTypeFilter === 'image') {
+        filteredOrders = filteredOrders.filter((o: any) => o.node_type === 'image');
+      }
+    }
+    
+    // 添加订单类型描述
+    const ordersWithType = filteredOrders.map((order: any) => ({
+      ...order,
+      order_type: order.node_type === 'cloud' ? 'hosting' : 'image',
+      order_description: order.node_type === 'cloud' ? '云节点托管' : '镜像节点'
+    }));
     
     // 统计数据
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE node_type = 'hosting') as hosting,
-        COUNT(*) FILTER (WHERE node_type = 'image') as image,
-        COUNT(*) FILTER (WHERE status = 'pending') as pending,
-        COUNT(*) FILTER (WHERE status = 'active') as active,
-        COUNT(*) FILTER (WHERE status = 'completed') as completed,
-        COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled
-      FROM nodes
-      ${whereClause}
-    `;
-    
-    const statsParams = params.slice(0, paramIndex - 1);
-    const stats = await sql(statsQuery, statsParams);
+    const stats = {
+      total: ordersWithType.length,
+      hosting: ordersWithType.filter((o: any) => o.node_type === 'cloud').length,
+      image: ordersWithType.filter((o: any) => o.node_type === 'image').length,
+      by_status: {
+        pending: ordersWithType.filter((o: any) => o.status === 'pending').length,
+        active: ordersWithType.filter((o: any) => o.status === 'active').length,
+        inactive: ordersWithType.filter((o: any) => o.status === 'inactive').length,
+        completed: ordersWithType.filter((o: any) => o.status === 'completed').length
+      }
+    };
     
     return successResponse({
-      records: orders,
-      stats: {
-        total: parseInt(stats[0].total),
-        hosting: parseInt(stats[0].hosting),
-        image: parseInt(stats[0].image),
-        by_status: {
-          pending: parseInt(stats[0].pending),
-          active: parseInt(stats[0].active),
-          completed: parseInt(stats[0].completed),
-          cancelled: parseInt(stats[0].cancelled)
-        }
-      },
-      pagination: {
-        limit,
-        offset,
-        total: parseInt(stats[0].total)
-      }
+      records: ordersWithType,
+      total: ordersWithType.length,
+      stats: stats
     });
     
   } catch (error: any) {
-    console.error('[PVE Orders API] GET error:', error);
+    console.error('[Orders API] GET error:', error);
     return errorResponse('获取订单失败: ' + error.message, 500);
   }
 }
 
-// POST - 创建订单
+// POST - 创建新订单（支付完成后调用）
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { 
       wallet_address, 
-      node_type, 
-      spec_type, 
-      duration_days,
-      total_price,
-      ashva_amount 
+      order_type,  // 'hosting' 或 'image'
+      purchase_price,
+      cpu_cores,
+      memory_gb,
+      storage_gb
     } = body;
     
-    // 验证必填字段
-    if (!wallet_address || !node_type || !spec_type || !duration_days || !total_price || !ashva_amount) {
-      return errorResponse('缺少必要参数', 400);
+    if (!wallet_address || !order_type || !purchase_price) {
+      return errorResponse('缺少必要参数: wallet_address, order_type, purchase_price', 400);
     }
     
-    // 验证节点类型
-    if (!['hosting', 'image'].includes(node_type)) {
-      return errorResponse('无效的节点类型', 400);
-    }
+    // 转换订单类型
+    const node_type = order_type === 'hosting' ? 'cloud' : 'image';
+    const node_id = `node_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     
-    // 插入订单
-    const insertQuery = `
+    // 创建订单
+    const result = await sql`
       INSERT INTO nodes (
+        node_id,
         wallet_address,
         node_type,
-        spec_type,
-        duration_days,
-        total_price,
-        ashva_amount,
         status,
+        purchase_price,
+        cpu_cores,
+        memory_gb,
+        storage_gb,
+        is_transferable,
         created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, 'pending', NOW()
+        ${node_id},
+        ${wallet_address.toLowerCase()},
+        ${node_type},
+        'pending',
+        ${purchase_price},
+        ${cpu_cores || 0},
+        ${memory_gb || 0},
+        ${storage_gb || 0},
+        ${node_type === 'cloud'},
+        NOW()
       )
       RETURNING *
     `;
     
-    const result = await sql(insertQuery, [
-      wallet_address.toLowerCase(),
-      node_type,
-      spec_type,
-      duration_days,
-      total_price,
-      ashva_amount
-    ]);
-    
-    console.log('[PVE] Order created:', result[0].id);
-    
     return successResponse({
       message: '订单创建成功',
-      order: result[0]
+      order: result[0],
+      order_type: order_type,
+      order_description: order_type === 'hosting' ? '云节点托管' : '镜像节点'
     }, 201);
     
   } catch (error: any) {
-    console.error('[PVE Orders API] POST error:', error);
+    console.error('[Orders API] POST error:', error);
     return errorResponse('创建订单失败: ' + error.message, 500);
   }
 }
@@ -159,35 +141,32 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, admin_notes } = body;
+    const { node_id, status, admin_notes } = body;
     
-    if (!id || !status) {
-      return errorResponse('缺少必要参数: id, status', 400);
+    if (!node_id || !status) {
+      return errorResponse('缺少必要参数: node_id, status', 400);
     }
     
     // 验证状态
-    const validStatuses = ['pending', 'active', 'completed', 'cancelled'];
+    const validStatuses = ['pending', 'active', 'inactive', 'completed', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return errorResponse('无效的状态值', 400);
     }
     
     // 更新订单
-    const updateQuery = `
+    const result = await sql`
       UPDATE nodes 
-      SET status = $1,
-          admin_notes = $2,
-          updated_at = NOW()
-      WHERE id = $3
+      SET 
+        status = ${status},
+        admin_notes = ${admin_notes || null},
+        updated_at = NOW()
+      WHERE node_id = ${node_id}
       RETURNING *
     `;
-    
-    const result = await sql(updateQuery, [status, admin_notes || null, id]);
     
     if (result.length === 0) {
       return errorResponse('订单不存在', 404);
     }
-    
-    console.log('[PVE] Order updated:', id, 'status:', status);
     
     return successResponse({
       message: '订单状态更新成功',
@@ -195,7 +174,7 @@ export async function PUT(request: NextRequest) {
     });
     
   } catch (error: any) {
-    console.error('[PVE Orders API] PUT error:', error);
+    console.error('[Orders API] PUT error:', error);
     return errorResponse('更新订单失败: ' + error.message, 500);
   }
 }
