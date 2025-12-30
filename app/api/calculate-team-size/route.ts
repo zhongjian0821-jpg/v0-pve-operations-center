@@ -3,29 +3,41 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    // 1. 获取所有层级关系
-    const hierarchyResult = await sql`
+    console.log('Starting team size calculation...');
+
+    // 1. 获取所有会员及其上级关系
+    const membersResult = await sql`
       SELECT wallet_address, parent_wallet
-      FROM member_hierarchy
-      WHERE parent_wallet IS NOT NULL
+      FROM members
+      WHERE wallet_address IS NOT NULL
     `;
 
-    // 2. 构建团队关系图
+    console.log(`Found ${membersResult.length} members`);
+
+    // 2. 构建团队关系图（parent -> children）
     const childrenMap: { [key: string]: string[] } = {};
     
-    for (const row of hierarchyResult) {
-      const parent = row.parent_wallet.toLowerCase();
-      const child = row.wallet_address.toLowerCase();
+    for (const member of membersResult) {
+      const wallet = member.wallet_address;
+      const parent = member.parent_wallet;
       
-      if (!childrenMap[parent]) {
-        childrenMap[parent] = [];
+      if (parent && parent !== '0x0000000000000000000000000000000000000001') {
+        const parentKey = parent.toLowerCase();
+        
+        if (!childrenMap[parentKey]) {
+          childrenMap[parentKey] = [];
+        }
+        
+        childrenMap[parentKey].push(wallet.toLowerCase());
       }
-      childrenMap[parent].push(child);
     }
 
-    // 3. 递归计算每个人的团队人数
+    console.log(`Built children map for ${Object.keys(childrenMap).length} parents`);
+
+    // 3. 递归计算团队人数
     function calculateTeamSize(walletAddress: string): number {
-      const children = childrenMap[walletAddress.toLowerCase()] || [];
+      const key = walletAddress.toLowerCase();
+      const children = childrenMap[key] || [];
       
       if (children.length === 0) {
         return 0;
@@ -33,7 +45,7 @@ export async function POST(request: Request) {
       
       let total = children.length; // 直推人数
       
-      // 加上所有下级的团队人数
+      // 递归计算所有下级的团队
       for (const child of children) {
         total += calculateTeamSize(child);
       }
@@ -41,40 +53,49 @@ export async function POST(request: Request) {
       return total;
     }
 
-    // 4. 获取所有会员
-    const membersResult = await sql`
-      SELECT wallet_address FROM members
-    `;
-
-    // 5. 计算并更新每个会员的 team_size
+    // 4. 计算并更新每个会员的 team_size
     const updates = [];
+    let updatedCount = 0;
     
     for (const member of membersResult) {
       const walletAddress = member.wallet_address;
       const teamSize = calculateTeamSize(walletAddress);
       
       if (teamSize > 0) {
-        updates.push({ address: walletAddress, size: teamSize });
-        
         // 更新数据库
         await sql`
           UPDATE members
-          SET team_size = ${teamSize}
+          SET team_size = ${teamSize},
+              updated_at = CURRENT_TIMESTAMP
           WHERE wallet_address = ${walletAddress}
         `;
+        
+        updates.push({ 
+          address: walletAddress,
+          size: teamSize 
+        });
+        updatedCount++;
       }
     }
 
+    console.log(`Updated ${updatedCount} members`);
+
     return NextResponse.json({
       success: true,
-      message: `Updated ${updates.length} members with team sizes`,
-      updates: updates
+      message: `Successfully updated ${updatedCount} members with team sizes`,
+      totalMembers: membersResult.length,
+      updatedMembers: updatedCount,
+      updates: updates.sort((a, b) => b.size - a.size) // 按团队人数排序
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Calculate team size error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to calculate team sizes' },
+      { 
+        success: false, 
+        error: 'Failed to calculate team sizes',
+        details: error.message 
+      },
       { status: 500 }
     );
   }
