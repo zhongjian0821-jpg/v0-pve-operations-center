@@ -52,7 +52,7 @@ export default function AdminMembersPage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await fetch('/api/members');
+      const response = await fetch(`/api/members?_t=${Date.now()}`);
       const data = await response.json();
       
       if (data.success) {
