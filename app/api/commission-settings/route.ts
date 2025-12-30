@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';  // 👈 添加这行！
+
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { successResponse, errorResponse } from '@/lib/api-utils';
