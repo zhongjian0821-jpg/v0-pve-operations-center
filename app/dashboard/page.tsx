@@ -163,7 +163,7 @@ export default function Dashboard() {
                   href={card.link}
                   className="block"
                 >
-                  <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer border-0 overflow-hidden group">
+                  <Card className="h-full bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-200 overflow-hidden group">
                     <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
                     
                     <CardContent className="p-6 relative">
@@ -182,7 +182,7 @@ export default function Dashboard() {
                         {card.title}
                       </h3>
                       
-                      <p className="text-sm text-gray-600 line-clamp-2">
+                      <p className="text-sm text-gray-600">
                         {card.description}
                       </p>
                     </CardContent>
@@ -193,7 +193,7 @@ export default function Dashboard() {
           </div>
         ))}
 
-        <div className="mt-12 text-center text-sm text-gray-500">
+        <div className="mt-12 text-center text-sm text-gray-600">
           {mounted ? (
             <p>数据实时更新于: {new Date().toLocaleString('zh-CN')}</p>
           ) : (
