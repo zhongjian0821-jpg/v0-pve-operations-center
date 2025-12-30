@@ -1,7 +1,6 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
-import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 export default function Dashboard() {
@@ -142,6 +141,12 @@ export default function Dashboard() {
     }
   ];
 
+  // 使用原生点击处理，而不是Next.js Link
+  const handleCardClick = (link: string) => {
+    console.log('Navigating to:', link);
+    window.location.href = link;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -158,10 +163,10 @@ export default function Dashboard() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {section.cards.map((card, cardIndex) => (
-                <Link 
+                <div
                   key={`card-${sectionIndex}-${cardIndex}`}
-                  href={card.link}
-                  className="block"
+                  onClick={() => handleCardClick(card.link)}
+                  className="block cursor-pointer"
                 >
                   <Card className="h-full bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer border border-gray-200 overflow-hidden group">
                     <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
@@ -185,9 +190,14 @@ export default function Dashboard() {
                       <p className="text-sm text-gray-600">
                         {card.description}
                       </p>
+                      
+                      {/* 显示目标URL用于调试 */}
+                      <p className="text-xs text-blue-500 mt-2">
+                        → {card.link}
+                      </p>
                     </CardContent>
                   </Card>
-                </Link>
+                </div>
               ))}
             </div>
           </div>
