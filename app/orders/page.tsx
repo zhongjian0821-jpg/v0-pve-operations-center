@@ -71,9 +71,13 @@ export default function OrdersPage() {
       setAdmin(adminData.admin)
       
       // 如果已登录，加载订单数据
-      const ordersData = await api.getOrders()
-      setOrders(ordersData.orders || [])
-      setStats(ordersData.stats || {})
+      const ordersResponse = await api.getOrders()
+      
+      // API 返回的是 { orders: [...], stats: {...} }
+      console.log('Orders response:', ordersResponse)
+      
+      setOrders(ordersResponse.orders || [])
+      setStats(ordersResponse.stats || {})
       
     } catch (err: any) {
       console.error('Load data error:', err)
@@ -91,6 +95,7 @@ export default function OrdersPage() {
   }
 
   const formatNumber = (num: number) => {
+    if (!num) return '0.00'
     return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
@@ -124,7 +129,7 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-slate-950">
       <Header admin={admin} onLogout={() => { api.logout(); window.location.href = '/login'; }} />
       <div className="flex items-center justify-center h-96">
-        <div className="text-blue-400">加载中...</div>
+        <div className="text-blue-400 text-xl">加载中...</div>
       </div>
     </div>
   )
@@ -155,9 +160,9 @@ export default function OrdersPage() {
                 <span className="text-blue-400 text-sm font-medium">总订单数</span>
                 <span className="text-3xl">📦</span>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{stats.total}</div>
+              <div className="text-3xl font-bold text-white mb-1">{stats.total || 0}</div>
               <div className="text-xs text-slate-400">
-                云节点 {stats.cloud_nodes} | 镜像 {stats.image_nodes}
+                云节点 {stats.cloud_nodes || 0} | 镜像 {stats.image_nodes || 0}
               </div>
             </div>
 
@@ -166,9 +171,9 @@ export default function OrdersPage() {
                 <span className="text-green-400 text-sm font-medium">已激活</span>
                 <span className="text-3xl">✅</span>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{stats.active}</div>
+              <div className="text-3xl font-bold text-white mb-1">{stats.active || 0}</div>
               <div className="text-xs text-slate-400">
-                待处理 {stats.pending} | 未激活 {stats.inactive}
+                待处理 {stats.pending || 0} | 未激活 {stats.inactive || 0}
               </div>
             </div>
 
@@ -177,7 +182,7 @@ export default function OrdersPage() {
                 <span className="text-purple-400 text-sm font-medium">总购买额</span>
                 <span className="text-3xl">💰</span>
               </div>
-              <div className="text-2xl font-bold text-white mb-1">{formatNumber(stats.total_purchase)}</div>
+              <div className="text-2xl font-bold text-white mb-1">{formatNumber(stats.total_purchase || 0)}</div>
               <div className="text-xs text-slate-400">ASHVA</div>
             </div>
 
@@ -186,7 +191,7 @@ export default function OrdersPage() {
                 <span className="text-orange-400 text-sm font-medium">总收益</span>
                 <span className="text-3xl">💎</span>
               </div>
-              <div className="text-2xl font-bold text-white mb-1">{formatNumber(stats.total_earnings)}</div>
+              <div className="text-2xl font-bold text-white mb-1">{formatNumber(stats.total_earnings || 0)}</div>
               <div className="text-xs text-slate-400">ASHVA</div>
             </div>
           </div>
@@ -259,7 +264,8 @@ export default function OrdersPage() {
           {filteredOrders.length === 0 ? (
             <div className="p-12 text-center text-slate-400">
               <div className="text-5xl mb-4">📦</div>
-              <p>没有符合条件的订单</p>
+              <p>暂无订单数据</p>
+              <p className="text-sm mt-2">需要先迁移 nodes 表数据</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -280,10 +286,10 @@ export default function OrdersPage() {
                   {filteredOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-slate-800/50 transition">
                       <td className="px-6 py-4 text-sm text-slate-300 font-mono">
-                        {order.id.substring(0, 12)}...
+                        {order.id?.substring(0, 12)}...
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-300 font-mono">
-                        {order.wallet_address.substring(0, 10)}...{order.wallet_address.substring(38)}
+                        {order.wallet_address?.substring(0, 10)}...{order.wallet_address?.substring(38)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
