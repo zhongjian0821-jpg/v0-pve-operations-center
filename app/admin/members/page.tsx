@@ -268,7 +268,7 @@ export default function AdminMembersPage() {
                         </span>
                       </td>
                       <td className="p-4 text-center">
-                        <div className="font-semibold">{member.team_size}</div>
+                        <div className="font-semibold text-gray-900">{member.team_size}</div>
                       </td>
                       <td className="p-4 text-right">
                         <div className="text-green-600 font-semibold">
