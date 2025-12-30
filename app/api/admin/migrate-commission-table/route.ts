@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { successResponse, errorResponse, requireAdmin } from '@/lib/api-utils';
