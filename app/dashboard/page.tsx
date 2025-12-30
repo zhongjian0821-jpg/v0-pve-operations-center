@@ -2,8 +2,15 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const sections = [
     {
       title: '会员管理',
@@ -144,7 +151,7 @@ export default function Dashboard() {
         </div>
 
         {sections.map((section, sectionIndex) => (
-          <div key={sectionIndex} className="mb-10">
+          <div key={`section-${sectionIndex}`} className="mb-10">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               {section.title}
             </h2>
@@ -152,7 +159,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {section.cards.map((card, cardIndex) => (
                 <Link 
-                  key={cardIndex} 
+                  key={`card-${sectionIndex}-${cardIndex}`}
                   href={card.link}
                   className="block"
                 >
@@ -161,7 +168,7 @@ export default function Dashboard() {
                     
                     <CardContent className="p-6 relative">
                       <div className="flex items-start justify-between mb-4">
-                        <div className={`text-4xl`}>
+                        <div className="text-4xl">
                           {card.icon}
                         </div>
                         {card.badge && (
@@ -187,7 +194,11 @@ export default function Dashboard() {
         ))}
 
         <div className="mt-12 text-center text-sm text-gray-500">
-          <p>数据实时更新于: {new Date().toLocaleString('zh-CN')}</p>
+          {mounted ? (
+            <p>数据实时更新于: {new Date().toLocaleString('zh-CN')}</p>
+          ) : (
+            <p>数据实时更新于: 加载中...</p>
+          )}
         </div>
       </div>
     </div>
