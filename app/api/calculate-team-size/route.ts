@@ -5,38 +5,48 @@ export async function POST(request: Request) {
   try {
     console.log('Starting team size calculation...');
 
-    // 1. 获取所有会员及其上级关系
-    const membersResult = await sql`
+    // 1. 获取所有会员及其上级关系 - 使用 wallets 表
+    const walletsResult = await sql`
       SELECT wallet_address, parent_wallet
-      FROM members
+      FROM wallets
       WHERE wallet_address IS NOT NULL
     `;
 
-    console.log(`Found ${membersResult.length} members`);
+    console.log(`Found ${walletsResult.length} wallets`);
 
     // 2. 构建团队关系图（parent -> children）
     const childrenMap: { [key: string]: string[] } = {};
     
-    for (const member of membersResult) {
-      const wallet = member.wallet_address;
-      const parent = member.parent_wallet;
+    for (const wallet of walletsResult) {
+      const walletAddr = wallet.wallet_address;
+      const parent = wallet.parent_wallet;
       
-      if (parent && parent !== '0x0000000000000000000000000000000000000001') {
+      // 跳过无效的 parent
+      if (parent && 
+          parent !== '0x0000000000000000000000000000000000000001' &&
+          parent.toLowerCase() !== '0x0000000000000000000000000000000000000000') {
         const parentKey = parent.toLowerCase();
         
         if (!childrenMap[parentKey]) {
           childrenMap[parentKey] = [];
         }
         
-        childrenMap[parentKey].push(wallet.toLowerCase());
+        childrenMap[parentKey].push(walletAddr.toLowerCase());
       }
     }
 
     console.log(`Built children map for ${Object.keys(childrenMap).length} parents`);
 
     // 3. 递归计算团队人数
-    function calculateTeamSize(walletAddress: string): number {
+    function calculateTeamSize(walletAddress: string, visited = new Set<string>()): number {
       const key = walletAddress.toLowerCase();
+      
+      // 防止循环引用
+      if (visited.has(key)) {
+        return 0;
+      }
+      visited.add(key);
+      
       const children = childrenMap[key] || [];
       
       if (children.length === 0) {
@@ -47,45 +57,48 @@ export async function POST(request: Request) {
       
       // 递归计算所有下级的团队
       for (const child of children) {
-        total += calculateTeamSize(child);
+        total += calculateTeamSize(child, visited);
       }
       
       return total;
     }
 
-    // 4. 计算并更新每个会员的 team_size
+    // 4. 计算并更新每个钱包的 team_size
     const updates = [];
     let updatedCount = 0;
     
-    for (const member of membersResult) {
-      const walletAddress = member.wallet_address;
+    for (const wallet of walletsResult) {
+      const walletAddress = wallet.wallet_address;
       const teamSize = calculateTeamSize(walletAddress);
       
+      // 更新数据库（包括 team_size 为 0 的情况）
+      await sql`
+        UPDATE wallets
+        SET team_size = ${teamSize},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE wallet_address = ${walletAddress}
+      `;
+      
       if (teamSize > 0) {
-        // 更新数据库
-        await sql`
-          UPDATE members
-          SET team_size = ${teamSize},
-              updated_at = CURRENT_TIMESTAMP
-          WHERE wallet_address = ${walletAddress}
-        `;
-        
         updates.push({ 
           address: walletAddress,
           size: teamSize 
         });
-        updatedCount++;
       }
+      updatedCount++;
     }
 
-    console.log(`Updated ${updatedCount} members`);
+    console.log(`Updated ${updatedCount} wallets`);
+
+    // 按团队人数排序
+    updates.sort((a, b) => b.size - a.size);
 
     return NextResponse.json({
       success: true,
-      message: `Successfully updated ${updatedCount} members with team sizes`,
-      totalMembers: membersResult.length,
-      updatedMembers: updatedCount,
-      updates: updates.sort((a, b) => b.size - a.size) // 按团队人数排序
+      message: `Successfully updated ${updatedCount} wallets with team sizes`,
+      totalWallets: walletsResult.length,
+      walletsWithTeam: updates.length,
+      updates: updates
     });
 
   } catch (error: any) {
