@@ -54,8 +54,10 @@ export default function AdminMembersPage() {
       const data = await response.json();
       
       if (data.success && data.data) {
-        setMembers(data.data);
-        calculateStats(data.data);
+        // API 返回 data.data.items 或 data.data
+        const memberList = data.data.items || data.data || [];
+        setMembers(Array.isArray(memberList) ? memberList : []);
+        calculateStats(Array.isArray(memberList) ? memberList : []);
       }
       setLoading(false);
     } catch (error) {
