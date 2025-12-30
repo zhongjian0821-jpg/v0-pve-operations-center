@@ -13,21 +13,33 @@ export default function NodePurchasesManagementPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 加载各种购买数据
+    // 加载各种购买数据 - 使用正确的API路径
     Promise.all([
-      fetch('/api/cloud-node-purchases').then(r => r.json()),
-      fetch('/api/image-node-purchases').then(r => r.json()),
-      fetch('/api/node-listings').then(r => r.json()),
+      fetch('/api/admin/cloud-node-purchases').then(r => r.json()),
+      fetch('/api/admin/image-node-purchases').then(r => r.json()),
+      fetch('/api/admin/node-listings').then(r => r.json()),
     ]).then(([cloudData, imageData, listingsData]) => {
       if (cloudData.success) setCloudPurchases(cloudData.data || []);
       if (imageData.success) setImagePurchases(imageData.data || []);
       if (listingsData.success) setListings(listingsData.data || []);
       setLoading(false);
+    }).catch(err => {
+      console.error('加载失败:', err);
+      setLoading(false);
     });
   }, []);
 
   if (loading) {
-    return <div className="p-8">加载中...</div>;
+    return (
+      <div className="p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="text-gray-600">加载中...</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const tabs = [
@@ -38,7 +50,10 @@ export default function NodePurchasesManagementPage() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">节点购买管理</h1>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">节点购买管理</h1>
+        <p className="text-gray-600 mt-2">统一管理所有节点购买业务</p>
+      </div>
 
       {/* 标签导航 */}
       <div className="flex gap-2 mb-6 border-b">
@@ -87,13 +102,13 @@ export default function NodePurchasesManagementPage() {
                   <tbody>
                     {cloudPurchases.map((purchase: any) => (
                       <tr key={purchase.id} className="border-b hover:bg-gray-50">
-                        <td className="p-4 font-mono text-sm">{purchase.order_id}</td>
+                        <td className="p-4 font-mono text-sm">{purchase.order_id || purchase.id}</td>
                         <td className="p-4 font-mono text-sm">
                           {purchase.wallet_address?.substring(0, 15)}...
                         </td>
                         <td className="p-4">
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                            {purchase.node_type}
+                            {purchase.node_type || 'Cloud'}
                           </span>
                         </td>
                         <td className="text-right p-4 font-bold">
@@ -150,13 +165,13 @@ export default function NodePurchasesManagementPage() {
                   <tbody>
                     {imagePurchases.map((purchase: any) => (
                       <tr key={purchase.id} className="border-b hover:bg-gray-50">
-                        <td className="p-4 font-mono text-sm">{purchase.order_id}</td>
+                        <td className="p-4 font-mono text-sm">{purchase.order_id || purchase.id}</td>
                         <td className="p-4 font-mono text-sm">
                           {purchase.wallet_address?.substring(0, 15)}...
                         </td>
                         <td className="p-4">
                           <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm">
-                            {purchase.image_name}
+                            {purchase.image_name || 'Image'}
                           </span>
                         </td>
                         <td className="text-right p-4">{purchase.image_size || 'N/A'}</td>
@@ -214,7 +229,7 @@ export default function NodePurchasesManagementPage() {
                   <tbody>
                     {listings.map((listing: any) => (
                       <tr key={listing.id} className="border-b hover:bg-gray-50">
-                        <td className="p-4 font-mono text-sm">{listing.listing_id}</td>
+                        <td className="p-4 font-mono text-sm">{listing.listing_id || listing.id}</td>
                         <td className="p-4 font-mono text-sm">
                           {listing.seller_address?.substring(0, 15)}...
                         </td>
