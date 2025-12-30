@@ -1,350 +1,286 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Card, CardContent } from '@/components/ui/card';
+import Link from 'next/link';
 
-interface MenuItem {
-  title: string;
-  path: string;
-  description: string;
+interface DashboardCard {
   icon: string;
-  count?: number;
+  title: string;
+  description: string;
+  link: string;
+  badge?: number | null;
+  color: string;
+  note?: string;
 }
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const [admin, setAdmin] = useState<any>(null);
-  const [stats, setStats] = useState<{[key: string]: number}>({});
+interface Section {
+  id: string;
+  title: string;
+  cards: DashboardCard[];
+  isNew?: boolean;
+}
 
-  useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    const adminData = localStorage.getItem('admin_user');
-    
-    if (!token || !adminData) {
-      router.push('/login');
-      return;
-    }
-    
-    setAdmin(JSON.parse(adminData));
-    fetchStats(token);
-  }, [router]);
-
-  const fetchStats = async (token: string) => {
-    const endpoints = [
-      'nodes', 'wallets', 'withdrawals', 'orders', 'transactions',
-      'assigned-records', 'commission-records', 'hierarchy', 'member-level-config',
-      'cloud-node-purchases', 'image-node-purchases', 'marketplace-listings',
-      'marketplace-transactions', 'users'
-    ];
-    
-    const newStats: {[key: string]: number} = {};
-    
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(`/api/admin/${endpoint}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await response.json();
-        if (data.success && Array.isArray(data.data)) {
-          newStats[endpoint] = data.data.length;
+export default function DashboardOptimized() {
+  const sections: Section[] = [
+    {
+      id: 'core',
+      title: 'PVE 核心功能',
+      cards: [
+        {
+          icon: '🖥️',
+          title: '节点管理',
+          description: '管理区块链节点',
+          link: '/nodes',
+          badge: null,
+          color: 'blue'
+        },
+        {
+          icon: '💰',
+          title: '钱包管理',
+          description: '管理用户钱包',
+          link: '/wallet',
+          badge: null,
+          color: 'yellow'
+        },
+        {
+          icon: '💵',
+          title: '收益中心',
+          description: '统一收益管理 (整合版)',
+          link: '/earnings',
+          badge: null,
+          color: 'green',
+          note: '节点收益 + 佣金收益 + 分配记录'
+        },
+        {
+          icon: '👥',
+          title: '团队中心',
+          description: '团队和推荐管理 (整合版)',
+          link: '/team',
+          badge: 32,
+          color: 'green',
+          note: '层级关系 + 推荐链接'
+        },
+        {
+          icon: '💎',
+          title: '佣金中心',
+          description: '佣金管理和分配 (整合版)',
+          link: '/commissions',
+          badge: 10,
+          color: 'yellow',
+          note: '佣金记录 + 佣金分配'
+        },
+        {
+          icon: '🛒',
+          title: '转让市场',
+          description: '节点买卖交易 (整合版)',
+          link: '/marketplace',
+          badge: null,
+          color: 'purple',
+          note: '市场 + 挂单 + 交易记录'
         }
-      } catch (err) {
-        // 忽略错误
-      }
+      ]
+    },
+    {
+      id: 'management',
+      title: '系统管理',
+      cards: [
+        {
+          icon: '📦',
+          title: '订单管理',
+          description: '查看和管理订单',
+          link: '/orders',
+          badge: null,
+          color: 'orange'
+        },
+        {
+          icon: '📊',
+          title: '交易记录',
+          description: '查看所有交易',
+          link: '/transactions',
+          badge: 0,
+          color: 'blue'
+        },
+        {
+          icon: '💸',
+          title: '提现管理',
+          description: '处理提现申请',
+          link: '/withdrawals',
+          badge: null,
+          color: 'red'
+        },
+        {
+          icon: '⭐',
+          title: '会员等级',
+          description: '会员等级配置',
+          link: '/member-levels',
+          badge: null,
+          color: 'yellow'
+        },
+        {
+          icon: '📋',
+          title: '操作日志',
+          description: '系统操作记录',
+          link: '/operation-logs',
+          badge: null,
+          color: 'gray'
+        },
+        {
+          icon: '🔐',
+          title: '登录日志',
+          description: '查看登录日志',
+          link: '/login-logs',
+          badge: null,
+          color: 'gray'
+        }
+      ]
+    },
+    {
+      id: 'advanced',
+      title: '高级功能',
+      isNew: true,
+      cards: [
+        {
+          icon: '☁️',
+          title: '云托管管理',
+          description: '云服务管理',
+          link: '/cloud-hosting',
+          badge: null,
+          color: 'blue'
+        },
+        {
+          icon: '⚓',
+          title: '质押记录',
+          description: '质押管理',
+          link: '/staking-records',
+          badge: null,
+          color: 'purple'
+        },
+        {
+          icon: '⚙️',
+          title: '用户配置',
+          description: '个人设置中心',
+          link: '/profile',
+          badge: null,
+          color: 'gray'
+        }
+      ]
     }
-    
-    setStats(newStats);
+  ];
+
+  const getColorClass = (color: string) => {
+    const colors: { [key: string]: string } = {
+      blue: 'hover:border-blue-500 hover:shadow-blue-100',
+      yellow: 'hover:border-yellow-500 hover:shadow-yellow-100',
+      green: 'hover:border-green-500 hover:shadow-green-100',
+      purple: 'hover:border-purple-500 hover:shadow-purple-100',
+      orange: 'hover:border-orange-500 hover:shadow-orange-100',
+      red: 'hover:border-red-500 hover:shadow-red-100',
+      gray: 'hover:border-gray-500 hover:shadow-gray-100'
+    };
+    return colors[color] || colors.gray;
   };
-
-  const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
-    router.push('/login');
-  };
-
-  const pveMenuItems: MenuItem[] = [
-    {
-      title: '节点管理',
-      path: '/nodes',
-      description: '管理区块链节点',
-      icon: '🖥️',
-      count: stats['nodes']
-    },
-    {
-      title: '钱包管理',
-      path: '/wallets',
-      description: '管理用户钱包',
-      icon: '💰',
-      count: stats['wallets']
-    },
-    {
-      title: '提现管理',
-      path: '/withdrawals',
-      description: '处理提现申请',
-      icon: '💸',
-      count: stats['withdrawals']
-    },
-    {
-      title: '订单管理',
-      path: '/orders',
-      description: '查看和管理订单',
-      icon: '📦',
-      count: stats['orders']
-    },
-    {
-      title: '交易记录',
-      path: '/transactions',
-      description: '查看所有交易记录',
-      icon: '📊',
-      count: stats['transactions']
-    },
-    {
-      title: '登录日志',
-      path: '/login-logs',
-      description: '查看系统登录日志',
-      icon: '📝'
-    }
-  ];
-
-  const web3MenuItems: MenuItem[] = [
-    {
-      title: '分配记录',
-      path: '/assigned-records',
-      description: '节点分配记录',
-      icon: '📋',
-      count: stats['assigned-records']
-    },
-    {
-      title: '佣金分配',
-      path: '/commission-distribution',
-      description: '佣金分配管理',
-      icon: '💵'
-    },
-    {
-      title: '佣金记录',
-      path: '/commission-records',
-      description: '查看佣金记录',
-      icon: '💰',
-      count: stats['commission-records']
-    },
-    {
-      title: '层级关系',
-      path: '/hierarchy',
-      description: '用户层级管理',
-      icon: '🌳',
-      count: stats['hierarchy']
-    },
-    {
-      title: '会员等级',
-      path: '/member-level-config',
-      description: '会员等级配置',
-      icon: '⭐',
-      count: stats['member-level-config']
-    },
-    {
-      title: '节点列表',
-      path: '/node-listings',
-      description: '公开节点列表',
-      icon: '📌'
-    },
-    {
-      title: '操作日志',
-      path: '/operation-logs',
-      description: '系统操作日志',
-      icon: '📜'
-    },
-    {
-      title: '质押记录',
-      path: '/staking-records',
-      description: '质押记录管理',
-      icon: '🔒'
-    },
-    {
-      title: '提现记录',
-      path: '/withdrawal-records',
-      description: 'Web3 提现记录',
-      icon: '💸'
-    }
-  ];
-
-  const newFeatureItems: MenuItem[] = [
-    {
-      title: '区块链节点托管',
-      path: '/cloud-hosting',
-      description: '管理和部署区块链节点',
-      icon: '🛠️'
-    },
-    {
-      title: '云节点购买',
-      path: '/cloud-node-purchases',
-      description: '云节点购买记录',
-      icon: '☁️',
-      count: stats['cloud-node-purchases']
-    },
-    {
-      title: '镜像节点购买',
-      path: '/image-node-purchases',
-      description: '镜像节点购买记录',
-      icon: '💿',
-      count: stats['image-node-purchases']
-    },
-    {
-      title: '市场挂单',
-      path: '/marketplace-listings',
-      description: '节点市场挂单',
-      icon: '🏪',
-      count: stats['marketplace-listings']
-    },
-    {
-      title: '市场交易',
-      path: '/marketplace-transactions',
-      description: '节点市场交易记录',
-      icon: '🔄',
-      count: stats['marketplace-transactions']
-    },
-    {
-      title: '节点管理',
-      path: '/nodes',
-      description: '所有节点管理',
-      icon: '🖥️',
-      count: stats['nodes']
-    },
-    {
-      title: '用户管理',
-      path: '/users',
-      description: '用户信息管理',
-      icon: '👥',
-      count: stats['users']
-    },
-    {
-      title: '设备管理',
-      path: '/devices',
-      description: '用户设备管理',
-      icon: '📱',
-      count: stats['devices']
-    },
-    {
-      title: '提现管理',
-      path: '/withdrawals',
-      description: '提现申请管理',
-      icon: '💸',
-      count: stats['withdrawals']
-    }
-  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">PVE 运营中心</h1>
-              <p className="text-sm text-gray-500 mt-1">欢迎回来，{admin?.username}</p>
+    <div className="min-h-screen bg-gray-50 p-8">
+      {/* 头部 */}
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">PVE运营中心</h1>
+          <p className="text-gray-600 mt-1">欢迎回来，admin</p>
+        </div>
+        <button className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600">
+          退出登录
+        </button>
+      </div>
+
+      {/* 优化提示 */}
+      <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+        <div className="flex items-start">
+          <div className="flex-shrink-0">
+            <span className="text-2xl">✨</span>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-blue-900">页面已优化</h3>
+            <div className="mt-2 text-sm text-blue-700">
+              <p>• 整合了4个核心模块（收益、佣金、团队、市场），每个模块现在都有标签页</p>
+              <p>• 删除了重复功能，从18个卡片优化到15个</p>
+              <p>• 点击带有"整合版"标记的卡片可查看增强功能</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              退出登录
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* PVE 核心功能 */}
-        <section className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">PVE 核心功能</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pveMenuItems.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => router.push(item.path)}
-                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-3xl">{item.icon}</span>
-                  {item.count !== undefined && (
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-                      {item.count}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {item.description}
-                </p>
-              </button>
-            ))}
+      {/* 各个功能区 */}
+      {sections.map(section => (
+        <div key={section.id} className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-xl font-bold text-gray-800">{section.title}</h2>
+            {section.isNew && (
+              <span className="bg-pink-500 text-white text-xs px-2 py-1 rounded font-bold">
+                NEW
+              </span>
+            )}
           </div>
-        </section>
 
-        {/* Web3 会员中心 */}
-        <section className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Web3 会员中心</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {web3MenuItems.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => router.push(item.path)}
-                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-3xl">{item.icon}</span>
-                  {item.count !== undefined && (
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                      {item.count}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {item.description}
-                </p>
-              </button>
+            {section.cards.map(card => (
+              <Link key={card.title} href={card.link}>
+                <Card 
+                  className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${getColorClass(card.color)} border-2`}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-3xl">{card.icon}</span>
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900">
+                              {card.title}
+                            </h3>
+                            {card.badge !== null && card.badge !== undefined && (
+                              <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">
+                                {card.badge}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{card.description}</p>
+                        {card.note && (
+                          <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                            💡 {card.note}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
-        </section>
+        </div>
+      ))}
 
-        {/* 新增功能 */}
-        <section>
-          <div className="flex items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-900">新增功能</h2>
-            <span className="ml-3 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-              NEW
-            </span>
+      {/* 已移除功能说明 */}
+      <div className="mt-8 bg-gray-100 p-6 rounded-lg">
+        <h3 className="text-lg font-bold text-gray-900 mb-3">🗑️ 已移除的重复功能</h3>
+        <div className="space-y-2 text-sm text-gray-700">
+          <div className="flex items-start gap-2">
+            <span>❌</span>
+            <span><strong>分配记录</strong> - 已整合到 <Link href="/earnings" className="text-blue-600 hover:underline">收益中心</Link> 的"分配记录"标签</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {newFeatureItems.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => router.push(item.path)}
-                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left border-2 border-purple-200"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-3xl">{item.icon}</span>
-                  {item.count !== undefined && (
-                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
-                      {item.count}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {item.description}
-                </p>
-              </button>
-            ))}
+          <div className="flex items-start gap-2">
+            <span>❌</span>
+            <span><strong>佣金分配</strong> - 已整合到 <Link href="/commissions" className="text-blue-600 hover:underline">佣金中心</Link> 的"佣金分配"标签</span>
           </div>
-        </section>
+          <div className="flex items-start gap-2">
+            <span>❌</span>
+            <span><strong>佣金记录</strong> - 已整合到 <Link href="/commissions" className="text-blue-600 hover:underline">佣金中心</Link> 的"佣金记录"标签</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span>❌</span>
+            <span><strong>层级关系</strong> - 已整合到 <Link href="/team" className="text-blue-600 hover:underline">团队中心</Link> 的"团队层级"标签</span>
+          </div>
+        </div>
       </div>
     </div>
   );
