@@ -1,4 +1,3 @@
-
 'use client';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +9,7 @@ export default function CommissionsPage() {
   useEffect(() => {
     const address = localStorage.getItem('wallet_address');
     if (address) {
-      fetch(\`/api/commissions?address=\${address}\`)
+      fetch(`/api/commissions?address=${address}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) setCommissions(data.data);
@@ -36,7 +35,7 @@ export default function CommissionsPage() {
                 {commissions.map((c: any) => (
                   <tr key={c.id} className="border-b">
                     <td className="p-4">{c.from_wallet}</td>
-                    <td className="text-right p-4">\${c.amount?.toFixed(2)}</td>
+                    <td className="text-right p-4">${c.amount?.toFixed(2)}</td>
                     <td className="text-right p-4">{new Date(c.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
