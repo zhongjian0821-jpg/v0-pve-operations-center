@@ -1,23 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Wallet, 
-  Clock, 
-  CheckCircle, 
-  XCircle,
-  AlertCircle,
-  DollarSign,
-  Flame,
-  ExternalLink
-} from 'lucide-react'
 
 interface Withdrawal {
   id: number
@@ -30,7 +16,6 @@ interface Withdrawal {
   status: string
   tx_hash: string | null
   reject_reason: string | null
-  member_level: string
   created_at: string
   processed_at: string | null
 }
@@ -50,9 +35,9 @@ export default function WithdrawalsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null)
-  const [actionDialog, setActionDialog] = useState(false)
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [showDialog, setShowDialog] = useState(false)
+  const [dialogType, setDialogType] = useState<'approve' | 'reject'>('approve')
   const [txHash, setTxHash] = useState('')
   const [rejectReason, setRejectReason] = useState('')
 
@@ -84,19 +69,19 @@ export default function WithdrawalsPage() {
   }
 
   const handleAction = async () => {
-    if (!selectedWithdrawal || !actionType) return
+    if (!selectedId) return
 
     try {
       const body: any = {
-        id: selectedWithdrawal.id,
-        status: actionType === 'approve' ? 'completed' : 'rejected'
+        id: selectedId,
+        status: dialogType === 'approve' ? 'completed' : 'rejected'
       }
 
-      if (actionType === 'approve' && txHash) {
+      if (dialogType === 'approve' && txHash) {
         body.tx_hash = txHash
       }
 
-      if (actionType === 'reject' && rejectReason) {
+      if (dialogType === 'reject' && rejectReason) {
         body.reject_reason = rejectReason
       }
 
@@ -109,8 +94,8 @@ export default function WithdrawalsPage() {
       const data = await response.json()
 
       if (data.success) {
-        setActionDialog(false)
-        setSelectedWithdrawal(null)
+        setShowDialog(false)
+        setSelectedId(null)
         setTxHash('')
         setRejectReason('')
         fetchWithdrawals()
@@ -120,38 +105,24 @@ export default function WithdrawalsPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const configs: Record<string, { label: string; variant: any; icon: any }> = {
-      pending: { 
-        label: '待处理', 
-        variant: 'secondary',
-        icon: <Clock className="w-3 h-3" />
-      },
-      processing: { 
-        label: '处理中', 
-        variant: 'default',
-        icon: <AlertCircle className="w-3 h-3" />
-      },
-      completed: { 
-        label: '已完成', 
-        variant: 'default',
-        icon: <CheckCircle className="w-3 h-3" />
-      },
-      rejected: { 
-        label: '已拒绝', 
-        variant: 'destructive',
-        icon: <XCircle className="w-3 h-3" />
-      }
+  const getStatusStyle = (status: string) => {
+    const styles: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      processing: 'bg-blue-100 text-blue-800',
+      completed: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800'
     }
-    
-    const config = configs[status] || configs.pending
-    
-    return (
-      <Badge variant={config.variant} className="flex items-center gap-1">
-        {config.icon}
-        {config.label}
-      </Badge>
-    )
+    return styles[status] || styles.pending
+  }
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: '待处理',
+      processing: '处理中',
+      completed: '已完成',
+      rejected: '已拒绝'
+    }
+    return labels[status] || status
   }
 
   if (loading) {
@@ -177,43 +148,37 @@ export default function WithdrawalsPage() {
 
       {/* 统计卡片 */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">总提现次数</CardTitle>
+            <CardHeader>
+              <CardTitle className="text-sm text-gray-600">总提现次数</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{stats.total_count}</div>
             </CardContent>
           </Card>
           
-          <Card className="border-yellow-200 bg-yellow-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-yellow-700 flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                待处理
-              </CardTitle>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-yellow-700">⏳ 待处理</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-yellow-700">{stats.pending_count}</div>
             </CardContent>
           </Card>
           
-          <Card className="border-green-200 bg-green-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-green-700 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                已完成
-              </CardTitle>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-green-700">✅ 已完成</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-700">{stats.completed_count}</div>
             </CardContent>
           </Card>
           
-          <Card className="border-blue-200 bg-blue-50/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-blue-700">总提现金额</CardTitle>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-blue-700">💰 总提现金额</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-700">
@@ -231,7 +196,7 @@ export default function WithdrawalsPage() {
           <CardTitle>状态筛选</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               variant={statusFilter === 'all' ? 'default' : 'outline'}
               size="sm"
@@ -281,21 +246,18 @@ export default function WithdrawalsPage() {
           </Card>
         ) : (
           withdrawals.map((withdrawal) => (
-            <Card key={withdrawal.id} className="hover:shadow-lg transition-shadow">
+            <Card key={withdrawal.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <Wallet className="w-5 h-5 text-blue-500" />
-                    <div>
-                      <CardTitle className="text-lg">提现 #{withdrawal.id}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {withdrawal.wallet_address.slice(0, 10)}...{withdrawal.wallet_address.slice(-8)}
-                      </CardDescription>
-                    </div>
+                  <div>
+                    <CardTitle className="text-lg">提现 #{withdrawal.id}</CardTitle>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {withdrawal.wallet_address.slice(0, 10)}...{withdrawal.wallet_address.slice(-8)}
+                    </p>
                   </div>
-                  <div className="flex gap-2">
-                    {getStatusBadge(withdrawal.status)}
-                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusStyle(withdrawal.status)}`}>
+                    {getStatusLabel(withdrawal.status)}
+                  </span>
                 </div>
               </CardHeader>
               <CardContent>
@@ -310,10 +272,7 @@ export default function WithdrawalsPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 flex items-center gap-1">
-                      <Flame className="w-3 h-3 text-orange-500" />
-                      燃烧金额
-                    </p>
+                    <p className="text-sm text-gray-600">🔥 燃烧金额</p>
                     <p className="text-lg font-semibold text-orange-600">
                       {parseFloat(withdrawal.burn_amount).toLocaleString()} ASHVA
                     </p>
@@ -338,10 +297,7 @@ export default function WithdrawalsPage() {
                 {withdrawal.tx_hash && (
                   <div className="mb-3">
                     <p className="text-sm text-gray-600">交易哈希</p>
-                    <p className="text-sm font-mono flex items-center gap-2">
-                      {withdrawal.tx_hash}
-                      <ExternalLink className="w-3 h-3" />
-                    </p>
+                    <p className="text-sm font-mono">{withdrawal.tx_hash}</p>
                   </div>
                 )}
                 
@@ -357,25 +313,23 @@ export default function WithdrawalsPage() {
                     <Button
                       size="sm"
                       onClick={() => {
-                        setSelectedWithdrawal(withdrawal)
-                        setActionType('approve')
-                        setActionDialog(true)
+                        setSelectedId(withdrawal.id)
+                        setDialogType('approve')
+                        setShowDialog(true)
                       }}
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      批准
+                      ✅ 批准
                     </Button>
                     <Button
                       size="sm"
-                      variant="destructive"
+                      variant="outline"
                       onClick={() => {
-                        setSelectedWithdrawal(withdrawal)
-                        setActionType('reject')
-                        setActionDialog(true)
+                        setSelectedId(withdrawal.id)
+                        setDialogType('reject')
+                        setShowDialog(true)
                       }}
                     >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      拒绝
+                      ❌ 拒绝
                     </Button>
                   </div>
                 )}
@@ -385,58 +339,59 @@ export default function WithdrawalsPage() {
         )}
       </div>
 
-      {/* 操作对话框 */}
-      <Dialog open={actionDialog} onOpenChange={setActionDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === 'approve' ? '批准提现' : '拒绝提现'}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedWithdrawal && (
-                <span>
-                  提现金额: {parseFloat(selectedWithdrawal.actual_amount).toLocaleString()} ASHVA
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {actionType === 'approve' && (
-              <div>
-                <Label htmlFor="tx_hash">交易哈希</Label>
-                <Input
-                  id="tx_hash"
-                  placeholder="0x..."
-                  value={txHash}
-                  onChange={(e) => setTxHash(e.target.value)}
-                />
+      {/* 简单对话框 */}
+      {showDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>
+                {dialogType === 'approve' ? '批准提现' : '拒绝提现'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {dialogType === 'approve' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">交易哈希</label>
+                    <Input
+                      placeholder="0x..."
+                      value={txHash}
+                      onChange={(e) => setTxHash(e.target.value)}
+                    />
+                  </div>
+                )}
+                
+                {dialogType === 'reject' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">拒绝原因</label>
+                    <Input
+                      placeholder="请输入拒绝原因"
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                    />
+                  </div>
+                )}
+                
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowDialog(false)
+                      setTxHash('')
+                      setRejectReason('')
+                    }}
+                  >
+                    取消
+                  </Button>
+                  <Button onClick={handleAction}>
+                    确认
+                  </Button>
+                </div>
               </div>
-            )}
-            
-            {actionType === 'reject' && (
-              <div>
-                <Label htmlFor="reject_reason">拒绝原因</Label>
-                <Input
-                  id="reject_reason"
-                  placeholder="请输入拒绝原因"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                />
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setActionDialog(false)}>
-              取消
-            </Button>
-            <Button onClick={handleAction}>
-              确认
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
