@@ -1,4 +1,3 @@
-
 'use client';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +9,7 @@ export default function TeamPage() {
   useEffect(() => {
     const address = localStorage.getItem('wallet_address');
     if (address) {
-      fetch(\`/api/team?address=\${address}\`)
+      fetch(`/api/team?address=${address}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) setTeam(data.data);
