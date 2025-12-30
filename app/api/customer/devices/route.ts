@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const filter = searchParams.get('wallet_address') || searchParams.get('wallet');
     const limit = parseInt(searchParams.get('limit') || '50');
     
-    let sql = `SELECT * FROM devices`;
+    let sql = `SELECT * FROM nodes`;
     const params: any[] = [];
     
     if (filter) {
