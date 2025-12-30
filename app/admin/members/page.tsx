@@ -1,4 +1,5 @@
 'use client';
+// Updated to fix display issue
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
