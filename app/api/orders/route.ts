@@ -75,29 +75,32 @@ export async function POST(request: NextRequest) {
     requireAdmin(request);
     
     const body = await request.json();
-    const { node_id, status, activated_at } = body;
+    const { node_id, status } = body;
     
     if (!node_id || !status) {
       return errorResponse('缺少必要参数', 400);
     }
     
     // 更新订单状态
-    const updateData: any = {
-      status,
-      updated_at: new Date().toISOString()
-    };
+    const now = new Date();
     
-    if (status === 'active' && !activated_at) {
-      updateData.activated_at = new Date().toISOString();
+    if (status === 'active') {
+      // 如果激活，设置 activated_at
+      await sql`
+        UPDATE nodes
+        SET 
+          status = ${status},
+          activated_at = ${now}
+        WHERE node_id = ${node_id}
+      `;
+    } else {
+      // 否则只更新状态
+      await sql`
+        UPDATE nodes
+        SET status = ${status}
+        WHERE node_id = ${node_id}
+      `;
     }
-    
-    await sql`
-      UPDATE nodes
-      SET 
-        status = ${status},
-        activated_at = ${updateData.activated_at || null}
-      WHERE node_id = ${node_id}
-    `;
     
     return successResponse({
       message: '订单状态已更新',
