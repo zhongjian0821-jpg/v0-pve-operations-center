@@ -66,14 +66,10 @@ export default function OrdersPage() {
     try {
       setError(null)
       
-      // 先检查登录状态
       const adminData = await api.getMe()
       setAdmin(adminData.admin)
       
-      // 如果已登录，加载订单数据
       const ordersResponse = await api.getOrders()
-      
-      // API 返回的是 { orders: [...], stats: {...} }
       console.log('Orders response:', ordersResponse)
       
       setOrders(ordersResponse.orders || [])
@@ -83,7 +79,6 @@ export default function OrdersPage() {
       console.error('Load data error:', err)
       setError(err.message || '加载失败')
       
-      // 如果是未授权错误，重定向到登录页
       if (err.message?.includes('Unauthorized') || err.message?.includes('401')) {
         setTimeout(() => {
           window.location.href = '/login'
@@ -97,6 +92,15 @@ export default function OrdersPage() {
   const formatNumber = (num: number) => {
     if (!num) return '0.00'
     return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
+  const formatDate = (dateString: any) => {
+    if (!dateString) return '未知时间'
+    try {
+      return new Date(dateString).toLocaleString('zh-CN')
+    } catch {
+      return '无效时间'
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -115,7 +119,7 @@ export default function OrdersPage() {
       case 'pending': return '待处理'
       case 'deploying': return '部署中'
       case 'inactive': return '未激活'
-      default: return status
+      default: return status || '未知'
     }
   }
 
@@ -152,7 +156,6 @@ export default function OrdersPage() {
       <Nav active="/orders" />
       
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* 统计卡片 */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-500/20 rounded-xl p-6">
@@ -197,7 +200,6 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* 筛选器 */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6">
           <div className="flex gap-4 flex-wrap">
             <div>
@@ -249,7 +251,6 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        {/* 订单列表 */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-800">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -266,6 +267,9 @@ export default function OrdersPage() {
               <div className="text-5xl mb-4">📦</div>
               <p>暂无订单数据</p>
               <p className="text-sm mt-2">需要先迁移 nodes 表数据</p>
+              <a href="/dashboard" className="text-blue-400 hover:underline mt-4 inline-block">
+                返回仪表板
+              </a>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -283,13 +287,15 @@ export default function OrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-slate-800/50 transition">
+                  {filteredOrders.map((order, index) => (
+                    <tr key={order.id || index} className="hover:bg-slate-800/50 transition">
                       <td className="px-6 py-4 text-sm text-slate-300 font-mono">
-                        {order.id?.substring(0, 12)}...
+                        {order.id ? `${order.id.substring(0, 12)}...` : '未知'}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-300 font-mono">
-                        {order.wallet_address?.substring(0, 10)}...{order.wallet_address?.substring(38)}
+                        {order.wallet_address ? 
+                          `${order.wallet_address.substring(0, 10)}...${order.wallet_address.substring(38)}` 
+                          : '未知'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -297,17 +303,17 @@ export default function OrdersPage() {
                             ? 'bg-blue-500/20 text-blue-400' 
                             : 'bg-purple-500/20 text-purple-400'
                         }`}>
-                          {order.order_type}
+                          {order.order_type || order.node_type || '未知'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-green-400 font-semibold">
-                        {formatNumber(order.purchase_price)}
+                        {formatNumber(order.purchase_price || 0)}
                       </td>
                       <td className="px-6 py-4 text-sm text-yellow-400">
-                        {formatNumber(order.staking_amount)}
+                        {formatNumber(order.staking_amount || 0)}
                       </td>
                       <td className="px-6 py-4 text-sm text-cyan-400 font-semibold">
-                        {formatNumber(order.total_earnings)}
+                        {formatNumber(order.total_earnings || 0)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
@@ -315,7 +321,7 @@ export default function OrdersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-400">
-                        {new Date(order.created_at).toLocaleString('zh-CN')}
+                        {formatDate(order.created_at)}
                       </td>
                     </tr>
                   ))}
