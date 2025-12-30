@@ -1,11 +1,8 @@
 'use client';
-// Rebuild at 1767100101
-// Updated to fix display issue
+// Fixed search and pagination UI issues
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 
 interface Member {
   id: number;
@@ -190,34 +187,36 @@ export default function AdminMembersPage() {
         </div>
 
         {/* 搜索和筛选 */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <Input
-                placeholder="搜索钱包地址..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
-              <select
-                value={filterLevel}
-                onChange={(e) => setFilterLevel(e.target.value)}
-                className="px-4 py-2 border rounded-md bg-white"
-              >
-                <option value="all">所有等级</option>
-                <option value="normal">普通会员</option>
-                <option value="market_partner">市场合伙人</option>
-                <option value="global_partner">全球合伙人</option>
-              </select>
-              <Button onClick={fetchMembers} variant="outline">
-                🔄 刷新数据
-              </Button>
-              <div className="ml-auto text-sm text-gray-600 flex items-center">
-                共 {filteredMembers.length} 个会员
-              </div>
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <input
+              type="text"
+              placeholder="搜索钱包地址..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <select
+              value={filterLevel}
+              onChange={(e) => setFilterLevel(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">所有等级</option>
+              <option value="normal">普通会员</option>
+              <option value="market_partner">市场合伙人</option>
+              <option value="global_partner">全球合伙人</option>
+            </select>
+            <button 
+              onClick={fetchMembers}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+            >
+              🔄 刷新数据
+            </button>
+            <div className="ml-auto text-sm text-gray-600">
+              共 {filteredMembers.length} 个会员
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 会员列表 */}
         <Card>
@@ -303,37 +302,45 @@ export default function AdminMembersPage() {
             {/* 分页 */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-6 pt-6 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    currentPage === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
                 >
                   上一页
-                </Button>
+                </button>
                 
                 <div className="flex gap-1">
                   {[...Array(totalPages)].map((_, i) => (
-                    <Button
+                    <button
                       key={i}
-                      variant={currentPage === i + 1 ? "default" : "outline"}
-                      size="sm"
                       onClick={() => setCurrentPage(i + 1)}
-                      className="w-10"
+                      className={`w-10 h-10 rounded-md text-sm font-medium transition-colors ${
+                        currentPage === i + 1
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
                     >
                       {i + 1}
-                    </Button>
+                    </button>
                   ))}
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    currentPage === totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
                 >
                   下一页
-                </Button>
+                </button>
               </div>
             )}
           </CardContent>
