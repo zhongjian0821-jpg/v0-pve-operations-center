@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
         n.staking_amount,
         n.total_earnings,
         n.created_at,
-        n.activated_at,
         w.member_level,
         w.ashva_balance
       FROM nodes n
@@ -41,8 +40,7 @@ export async function GET(request: NextRequest) {
       status: order.status,
       member_level: order.member_level,
       ashva_balance: parseFloat(order.ashva_balance || 0),
-      created_at: order.created_at,
-      activated_at: order.activated_at
+      created_at: order.created_at
     }));
     
     // 统计数据
@@ -82,25 +80,11 @@ export async function POST(request: NextRequest) {
     }
     
     // 更新订单状态
-    const now = new Date();
-    
-    if (status === 'active') {
-      // 如果激活，设置 activated_at
-      await sql`
-        UPDATE nodes
-        SET 
-          status = ${status},
-          activated_at = ${now}
-        WHERE node_id = ${node_id}
-      `;
-    } else {
-      // 否则只更新状态
-      await sql`
-        UPDATE nodes
-        SET status = ${status}
-        WHERE node_id = ${node_id}
-      `;
-    }
+    await sql`
+      UPDATE nodes
+      SET status = ${status}
+      WHERE node_id = ${node_id}
+    `;
     
     return successResponse({
       message: '订单状态已更新',
