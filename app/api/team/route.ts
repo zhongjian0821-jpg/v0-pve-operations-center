@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       params.push(filterValue);
     }
 
-    sql += ` ORDER BY created_at DESC LIMIT ${params.length + 1} OFFSET ${params.length + 2}`;
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     const result = await query(sql, params);
