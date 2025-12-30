@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
     const orderType = searchParams.get('type') as OrderType | null;
     const status = searchParams.get('status') as OrderStatus | null;
     
-    // 构建基础查询
-    let queryParts = [`
+    // 使用 sql 模板字符串构建查询
+    const baseQuery = sql`
       SELECT 
         n.id,
         n.node_id,
@@ -33,68 +33,96 @@ export async function GET(request: NextRequest) {
         n.created_at,
         n.updated_at,
         w.member_level,
-        w.ashva_balance,
-        CASE 
-          WHEN n.node_type = 'cloud' THEN 'hosting'
-          WHEN n.node_type = 'image' THEN 'image'
-          ELSE 'hosting'
-        END as order_type,
-        CASE 
-          WHEN n.node_type = 'cloud' THEN '云节点托管'
-          WHEN n.node_type = 'image' THEN '镜像节点'
-          ELSE '云节点托管'
-        END as order_description
+        w.ashva_balance
       FROM nodes n
       LEFT JOIN wallets w ON LOWER(n.wallet_address) = LOWER(w.wallet_address)
-      WHERE 1=1
-    `];
+    `;
     
-    const params: any[] = [];
-    let paramIndex = 1;
+    // 动态添加条件
+    let orders;
     
-    // 添加筛选条件
-    if (walletAddress) {
-      queryParts.push(`AND LOWER(n.wallet_address) = LOWER($${paramIndex})`);
-      params.push(walletAddress);
-      paramIndex++;
+    if (walletAddress && orderType && status) {
+      const nodeType = orderType === 'hosting' ? 'cloud' : 'image';
+      orders = await sql`
+        ${baseQuery}
+        WHERE LOWER(n.wallet_address) = LOWER(${walletAddress})
+        AND n.node_type = ${nodeType}
+        AND n.status = ${status}
+        ORDER BY n.created_at DESC
+      `;
+    } else if (walletAddress && orderType) {
+      const nodeType = orderType === 'hosting' ? 'cloud' : 'image';
+      orders = await sql`
+        ${baseQuery}
+        WHERE LOWER(n.wallet_address) = LOWER(${walletAddress})
+        AND n.node_type = ${nodeType}
+        ORDER BY n.created_at DESC
+      `;
+    } else if (walletAddress && status) {
+      orders = await sql`
+        ${baseQuery}
+        WHERE LOWER(n.wallet_address) = LOWER(${walletAddress})
+        AND n.status = ${status}
+        ORDER BY n.created_at DESC
+      `;
+    } else if (orderType && status) {
+      const nodeType = orderType === 'hosting' ? 'cloud' : 'image';
+      orders = await sql`
+        ${baseQuery}
+        WHERE n.node_type = ${nodeType}
+        AND n.status = ${status}
+        ORDER BY n.created_at DESC
+      `;
+    } else if (walletAddress) {
+      orders = await sql`
+        ${baseQuery}
+        WHERE LOWER(n.wallet_address) = LOWER(${walletAddress})
+        ORDER BY n.created_at DESC
+      `;
+    } else if (orderType) {
+      const nodeType = orderType === 'hosting' ? 'cloud' : 'image';
+      orders = await sql`
+        ${baseQuery}
+        WHERE n.node_type = ${nodeType}
+        ORDER BY n.created_at DESC
+      `;
+    } else if (status) {
+      orders = await sql`
+        ${baseQuery}
+        WHERE n.status = ${status}
+        ORDER BY n.created_at DESC
+      `;
+    } else {
+      orders = await sql`
+        ${baseQuery}
+        ORDER BY n.created_at DESC
+      `;
     }
     
-    if (orderType) {
-      if (orderType === 'hosting') {
-        queryParts.push(`AND n.node_type = 'cloud'`);
-      } else if (orderType === 'image') {
-        queryParts.push(`AND n.node_type = 'image'`);
-      }
-    }
-    
-    if (status) {
-      queryParts.push(`AND n.status = $${paramIndex}`);
-      params.push(status);
-      paramIndex++;
-    }
-    
-    queryParts.push('ORDER BY n.created_at DESC');
-    
-    const queryText = queryParts.join(' ');
-    const orders = await sql.query(queryText, params);
+    // 添加订单类型和描述
+    const ordersWithType = orders.map(order => ({
+      ...order,
+      order_type: order.node_type === 'cloud' ? 'hosting' : 'image',
+      order_description: order.node_type === 'cloud' ? '云节点托管' : '镜像节点'
+    }));
     
     // 统计数据
     const stats = {
-      total: orders.rows.length,
-      hosting: orders.rows.filter(o => o.node_type === 'cloud').length,
-      image: orders.rows.filter(o => o.node_type === 'image').length,
+      total: ordersWithType.length,
+      hosting: ordersWithType.filter(o => o.node_type === 'cloud').length,
+      image: ordersWithType.filter(o => o.node_type === 'image').length,
       by_status: {
-        pending: orders.rows.filter(o => o.status === 'pending').length,
-        active: orders.rows.filter(o => o.status === 'active').length,
-        inactive: orders.rows.filter(o => o.status === 'inactive').length,
-        deploying: orders.rows.filter(o => o.status === 'deploying').length,
+        pending: ordersWithType.filter(o => o.status === 'pending').length,
+        active: ordersWithType.filter(o => o.status === 'active').length,
+        inactive: ordersWithType.filter(o => o.status === 'inactive').length,
+        deploying: ordersWithType.filter(o => o.status === 'deploying').length,
       }
     };
     
     return successResponse({
-      orders: orders.rows,
+      orders: ordersWithType,
       stats: stats,
-      total: orders.rows.length
+      total: ordersWithType.length
     });
     
   } catch (error: any) {
@@ -184,46 +212,70 @@ export async function PUT(request: NextRequest) {
       return errorResponse('缺少 node_id', 400);
     }
     
-    const updateFields: string[] = ['updated_at = NOW()'];
-    const params: any[] = [];
-    let paramIndex = 1;
+    let updated;
     
-    if (status) {
-      updateFields.push(`status = $${paramIndex}`);
-      params.push(status);
-      paramIndex++;
-      
+    if (status && deploy_progress !== undefined) {
       if (status === 'active') {
-        updateFields.push('started_at = NOW()');
-        updateFields.push('deploy_progress = 100');
-        updateFields.push(`health_status = 'healthy'`);
+        updated = await sql`
+          UPDATE nodes
+          SET status = ${status},
+              deploy_progress = ${deploy_progress},
+              started_at = NOW(),
+              health_status = 'healthy',
+              updated_at = NOW()
+          WHERE node_id = ${node_id}
+          RETURNING *
+        `;
+      } else {
+        updated = await sql`
+          UPDATE nodes
+          SET status = ${status},
+              deploy_progress = ${deploy_progress},
+              updated_at = NOW()
+          WHERE node_id = ${node_id}
+          RETURNING *
+        `;
       }
+    } else if (status) {
+      if (status === 'active') {
+        updated = await sql`
+          UPDATE nodes
+          SET status = ${status},
+              deploy_progress = 100,
+              started_at = NOW(),
+              health_status = 'healthy',
+              updated_at = NOW()
+          WHERE node_id = ${node_id}
+          RETURNING *
+        `;
+      } else {
+        updated = await sql`
+          UPDATE nodes
+          SET status = ${status},
+              updated_at = NOW()
+          WHERE node_id = ${node_id}
+          RETURNING *
+        `;
+      }
+    } else if (deploy_progress !== undefined) {
+      updated = await sql`
+        UPDATE nodes
+        SET deploy_progress = ${deploy_progress},
+            updated_at = NOW()
+        WHERE node_id = ${node_id}
+        RETURNING *
+      `;
+    } else {
+      return errorResponse('必须提供 status 或 deploy_progress', 400);
     }
     
-    if (deploy_progress !== undefined) {
-      updateFields.push(`deploy_progress = $${paramIndex}`);
-      params.push(deploy_progress);
-      paramIndex++;
-    }
-    
-    params.push(node_id);
-    
-    const queryText = `
-      UPDATE nodes
-      SET ${updateFields.join(', ')}
-      WHERE node_id = $${paramIndex}
-      RETURNING *
-    `;
-    
-    const updated = await sql.query(queryText, params);
-    
-    if (updated.rows.length === 0) {
+    if (updated.length === 0) {
       return errorResponse('订单不存在', 404);
     }
     
     return successResponse({
       message: '订单更新成功',
-      order: updated.rows[0]
+      order: updated[0]
     });
     
   } catch (error: any) {
