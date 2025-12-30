@@ -17,7 +17,9 @@ export default function TeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
-  const [showMode, setShowMode] = useState<'top' | 'all'>('all'); // 显示模式
+  const [showMode, setShowMode] = useState<'all' | 'top'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResult, setSearchResult] = useState<Member | null>(null);
 
   useEffect(() => {
     fetchMembers();
@@ -47,6 +49,19 @@ export default function TeamPage() {
     );
   };
 
+  // 获取所有下级（递归）
+  const getAllDescendants = (parentAddress: string): Member[] => {
+    const direct = getDirectChildren(parentAddress);
+    let all = [...direct];
+    
+    for (const child of direct) {
+      const descendants = getAllDescendants(child.wallet_address);
+      all = [...all, ...descendants];
+    }
+    
+    return all;
+  };
+
   const toggleExpand = (address: string) => {
     const newExpanded = new Set(expandedMembers);
     if (newExpanded.has(address)) {
@@ -55,6 +70,27 @@ export default function TeamPage() {
       newExpanded.add(address);
     }
     setExpandedMembers(newExpanded);
+  };
+
+  // 搜索功能
+  const handleSearch = () => {
+    if (!searchTerm.trim()) {
+      setSearchResult(null);
+      return;
+    }
+
+    const found = members.find(m => 
+      m.wallet_address.toLowerCase().includes(searchTerm.toLowerCase().trim())
+    );
+
+    if (found) {
+      setSearchResult(found);
+      // 自动展开这个会员
+      setExpandedMembers(new Set([found.wallet_address]));
+    } else {
+      setSearchResult(null);
+      alert('未找到该钱包地址');
+    }
   };
 
   const getLevelInfo = (level: string) => {
@@ -73,7 +109,7 @@ export default function TeamPage() {
     });
   };
 
-  const renderMemberCard = (member: Member, level: number = 0) => {
+  const renderMemberCard = (member: Member, level: number = 0, isSearchResult: boolean = false) => {
     const children = getDirectChildren(member.wallet_address);
     const isExpanded = expandedMembers.has(member.wallet_address);
     const hasChildren = children.length > 0;
@@ -83,10 +119,11 @@ export default function TeamPage() {
       <div key={member.id} className="relative">
         <div 
           className={`relative bg-white border-l-4 ${
+            isSearchResult ? 'border-yellow-500 ring-2 ring-yellow-400' :
             member.member_level === 'global_partner' ? 'border-orange-500' :
             member.member_level === 'market_partner' ? 'border-purple-500' :
             'border-green-500'
-          } rounded-lg shadow-sm mb-3 overflow-hidden hover:shadow-md transition-shadow`}
+          } rounded-lg shadow-sm mb-3 overflow-hidden hover:shadow-md transition-all`}
           style={{ marginLeft: `${level * 40}px` }}
         >
           <div className="p-4">
@@ -116,9 +153,16 @@ export default function TeamPage() {
                 </div>
               </div>
 
-              <span className={`px-3 py-1 rounded-full text-sm font-bold ${levelInfo.bgColor} ${levelInfo.color}`}>
-                {levelInfo.name}
-              </span>
+              <div className="flex items-center gap-2">
+                {isSearchResult && (
+                  <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded">
+                    搜索结果
+                  </span>
+                )}
+                <span className={`px-3 py-1 rounded-full text-sm font-bold ${levelInfo.bgColor} ${levelInfo.color}`}>
+                  {levelInfo.name}
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -158,7 +202,7 @@ export default function TeamPage() {
 
         {isExpanded && hasChildren && (
           <div className="ml-6 border-l-2 border-gray-200 pl-2">
-            {children.map(child => renderMemberCard(child, level + 1))}
+            {children.map(child => renderMemberCard(child, level + 1, false))}
           </div>
         )}
       </div>
@@ -176,14 +220,13 @@ export default function TeamPage() {
     );
   }
 
-  // 根据显示模式选择要显示的会员
   let displayMembers: Member[];
   
-  if (showMode === 'top') {
-    // 只显示顶级成员
+  if (searchResult) {
+    displayMembers = [searchResult];
+  } else if (showMode === 'top') {
     displayMembers = members.filter(m => !m.parent_wallet);
   } else {
-    // 显示所有有下级的会员
     displayMembers = members.filter(m => {
       const children = getDirectChildren(m.wallet_address);
       return children.length > 0;
@@ -195,73 +238,163 @@ export default function TeamPage() {
   const marketPartners = members.filter(m => m.member_level === 'market_partner').length;
   const globalPartners = members.filter(m => m.member_level === 'global_partner').length;
 
+  // 如果有搜索结果，计算其下级统计
+  let searchStats = null;
+  if (searchResult) {
+    const allDescendants = getAllDescendants(searchResult.wallet_address);
+    const directChildren = getDirectChildren(searchResult.wallet_address);
+    
+    const totalBalance = allDescendants.reduce((sum, m) => sum + parseFloat(m.ashva_balance), 0);
+    
+    searchStats = {
+      directCount: directChildren.length,
+      totalCount: allDescendants.length,
+      totalBalance: totalBalance,
+      levels: {
+        normal: allDescendants.filter(m => m.member_level === 'normal').length,
+        market: allDescendants.filter(m => m.member_level === 'market_partner').length,
+        global: allDescendants.filter(m => m.member_level === 'global_partner').length,
+      }
+    };
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">团队中心 🌳</h1>
-          <p className="text-gray-600">点击 + 按钮展开查看该成员推荐的所有下级</p>
+          <p className="text-gray-600">搜索会员查看其完整的下级网络</p>
         </div>
 
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="text-sm font-medium text-gray-600 mb-2">团队总人数</div>
-            <div className="text-4xl font-bold text-blue-600">{totalMembers}</div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="text-sm font-medium text-gray-600 mb-2">普通会员</div>
-            <div className="text-4xl font-bold text-green-600">{normalMembers}</div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="text-sm font-medium text-gray-600 mb-2">市场合伙人</div>
-            <div className="text-4xl font-bold text-purple-600">{marketPartners}</div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="text-sm font-medium text-gray-600 mb-2">全球合伙人</div>
-            <div className="text-4xl font-bold text-orange-600">{globalPartners}</div>
+        {/* 搜索框 */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex gap-4">
+            <input
+              type="text"
+              placeholder="输入钱包地址搜索（支持部分匹配）..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleSearch}
+              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors"
+            >
+              🔍 搜索
+            </button>
+            {searchResult && (
+              <button
+                onClick={() => {
+                  setSearchResult(null);
+                  setSearchTerm('');
+                }}
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors"
+              >
+                清除
+              </button>
+            )}
           </div>
         </div>
+
+        {/* 搜索结果统计 */}
+        {searchResult && searchStats && (
+          <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6 mb-6">
+            <h3 className="text-xl font-bold text-yellow-900 mb-4">
+              📊 {searchResult.wallet_address.substring(0, 10)}... 的团队统计
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-gray-600 mb-1">直推人数</div>
+                <div className="text-3xl font-bold text-blue-600">{searchStats.directCount}</div>
+              </div>
+              <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-gray-600 mb-1">团队总人数</div>
+                <div className="text-3xl font-bold text-purple-600">{searchStats.totalCount}</div>
+              </div>
+              <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-gray-600 mb-1">团队总余额</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {(searchStats.totalBalance / 1000000).toFixed(2)}M
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-gray-600 mb-1">等级分布</div>
+                <div className="text-sm font-medium">
+                  <span className="text-green-600">普{searchStats.levels.normal}</span> / 
+                  <span className="text-purple-600"> 市{searchStats.levels.market}</span> / 
+                  <span className="text-orange-600"> 全{searchStats.levels.global}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 全局统计 */}
+        {!searchResult && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="text-sm font-medium text-gray-600 mb-2">团队总人数</div>
+              <div className="text-4xl font-bold text-blue-600">{totalMembers}</div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="text-sm font-medium text-gray-600 mb-2">普通会员</div>
+              <div className="text-4xl font-bold text-green-600">{normalMembers}</div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="text-sm font-medium text-gray-600 mb-2">市场合伙人</div>
+              <div className="text-4xl font-bold text-purple-600">{marketPartners}</div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="text-sm font-medium text-gray-600 mb-2">全球合伙人</div>
+              <div className="text-4xl font-bold text-orange-600">{globalPartners}</div>
+            </div>
+          </div>
+        )}
 
         {/* 显示模式切换 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              <span className="font-bold">显示模式：</span>
-              {showMode === 'top' ? '只显示顶级会员' : '显示所有有下级的会员'}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowMode('top')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  showMode === 'top'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                顶级会员 ({members.filter(m => !m.parent_wallet).length})
-              </button>
-              <button
-                onClick={() => setShowMode('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  showMode === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                所有推荐人 ({displayMembers.length})
-              </button>
+        {!searchResult && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                <span className="font-bold">显示模式：</span>
+                {showMode === 'top' ? '只显示顶级会员' : '显示所有有下级的会员'}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowMode('top')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    showMode === 'top'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  顶级会员 ({members.filter(m => !m.parent_wallet).length})
+                </button>
+                <button
+                  onClick={() => setShowMode('all')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    showMode === 'all'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  所有推荐人 ({members.filter(m => getDirectChildren(m.wallet_address).length > 0).length})
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* 团队列表 */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">团队成员</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {searchResult ? '搜索结果' : '团队成员'}
+            </h2>
             <div className="text-sm text-gray-600">
               显示 {displayMembers.length} 个成员
             </div>
@@ -269,7 +402,7 @@ export default function TeamPage() {
 
           {displayMembers.length > 0 ? (
             <div className="space-y-4">
-              {displayMembers.map(member => renderMemberCard(member, 0))}
+              {displayMembers.map(member => renderMemberCard(member, 0, member.id === searchResult?.id))}
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
@@ -282,10 +415,10 @@ export default function TeamPage() {
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
           <h3 className="text-lg font-bold text-blue-900 mb-3">💡 使用说明</h3>
           <ul className="space-y-2 text-blue-800">
-            <li>• 点击"所有推荐人"可以看到所有有下级的会员（包括多层级）</li>
-            <li>• 点击 + 按钮展开查看该成员的直推下级</li>
-            <li>• 可以递归展开多层级，查看完整的推荐网络</li>
-            <li>• 边框颜色：橙色=全球合伙人，紫色=市场合伙人，绿色=普通会员</li>
+            <li>• <span className="font-bold">搜索功能</span>：输入钱包地址（完整或部分）可以查找指定会员</li>
+            <li>• <span className="font-bold">团队统计</span>：搜索后显示该会员的直推人数、团队总人数、团队总余额</li>
+            <li>• <span className="font-bold">查看下级</span>：点击 + 按钮展开查看所有直推下级的详细信息</li>
+            <li>• <span className="font-bold">递归展开</span>：可以继续展开下级的下级，查看完整的推荐网络</li>
           </ul>
         </div>
       </div>
