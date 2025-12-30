@@ -13,10 +13,26 @@ interface Member {
   created_at: string;
 }
 
+interface CommissionSettings {
+  address: string;
+  memberLevel: string;
+  maxDepth: number;
+  totalCommission: number;
+  extraRewardRight: number;
+  selfRate: number;
+  level1Rate: number;
+  level2Rate: number;
+  level1Extra: number;
+  level2Extra: number;
+  marketPartnerRate?: number;
+  marketPartnerExtra?: number;
+}
+
 export default function TeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
+  const [commissionsCache, setCommissionsCache] = useState<Map<string, CommissionSettings>>(new Map());
   const [showMode, setShowMode] = useState<'all' | 'top'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResult, setSearchResult] = useState<Member | null>(null);
@@ -42,6 +58,27 @@ export default function TeamPage() {
     }
   };
 
+  const fetchCommissionSettings = async (address: string): Promise<CommissionSettings | null> => {
+    // 检查缓存
+    if (commissionsCache.has(address)) {
+      return commissionsCache.get(address)!;
+    }
+
+    try {
+      const response = await fetch(`/api/commission-settings?address=${address}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setCommissionsCache(prev => new Map(prev).set(address, data.data));
+        return data.data;
+      }
+    } catch (err) {
+      console.error('Error fetching commission:', err);
+    }
+    
+    return null;
+  };
+
   const getDirectChildren = (parentAddress: string): Member[] => {
     return members.filter(m => 
       m.parent_wallet && 
@@ -49,7 +86,6 @@ export default function TeamPage() {
     );
   };
 
-  // 获取所有下级（递归）
   const getAllDescendants = (parentAddress: string): Member[] => {
     const direct = getDirectChildren(parentAddress);
     let all = [...direct];
@@ -62,17 +98,18 @@ export default function TeamPage() {
     return all;
   };
 
-  const toggleExpand = (address: string) => {
+  const toggleExpand = async (address: string) => {
     const newExpanded = new Set(expandedMembers);
     if (newExpanded.has(address)) {
       newExpanded.delete(address);
     } else {
       newExpanded.add(address);
+      // 预加载佣金设置
+      await fetchCommissionSettings(address);
     }
     setExpandedMembers(newExpanded);
   };
 
-  // 搜索功能
   const handleSearch = () => {
     if (!searchTerm.trim()) {
       setSearchResult(null);
@@ -85,7 +122,6 @@ export default function TeamPage() {
 
     if (found) {
       setSearchResult(found);
-      // 自动展开这个会员
       setExpandedMembers(new Set([found.wallet_address]));
     } else {
       setSearchResult(null);
@@ -94,10 +130,10 @@ export default function TeamPage() {
   };
 
   const getLevelInfo = (level: string) => {
-    const info: { [key: string]: { name: string; color: string; bgColor: string } } = {
-      'global_partner': { name: '全球合伙人', color: 'text-orange-800', bgColor: 'bg-orange-100' },
-      'market_partner': { name: '市场合伙人', color: 'text-purple-800', bgColor: 'bg-purple-100' },
-      'normal': { name: '普通会员', color: 'text-green-800', bgColor: 'bg-green-100' },
+    const info: { [key: string]: { name: string; color: string; bgColor: string; maxDepth: number } } = {
+      'global_partner': { name: '全球合伙人', color: 'text-orange-800', bgColor: 'bg-orange-100', maxDepth: 100 },
+      'market_partner': { name: '市场合伙人', color: 'text-purple-800', bgColor: 'bg-purple-100', maxDepth: 20 },
+      'normal': { name: '普通会员', color: 'text-green-800', bgColor: 'bg-green-100', maxDepth: 2 },
     };
     return info[level] || info['normal'];
   };
@@ -109,11 +145,112 @@ export default function TeamPage() {
     });
   };
 
+  const CommissionDisplay = ({ settings, compact = false }: { settings: CommissionSettings; compact?: boolean }) => {
+    if (compact) {
+      return (
+        <div className="text-xs text-gray-600">
+          <span className="font-semibold">佣金设置:</span>{' '}
+          直推{settings.level1Rate}% / 间推{settings.level2Rate}%
+          {settings.marketPartnerRate && ` / 市场${settings.marketPartnerRate}%`}
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3">
+        <div className="text-sm font-bold text-blue-900 mb-2">💰 佣金分配设置</div>
+        
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="bg-white rounded p-2">
+            <div className="text-gray-600 mb-1">最大层级</div>
+            <div className="text-lg font-bold text-blue-600">{settings.maxDepth}级</div>
+          </div>
+          
+          <div className="bg-white rounded p-2">
+            <div className="text-gray-600 mb-1">总佣金</div>
+            <div className="text-lg font-bold text-green-600">{settings.totalCommission}%</div>
+          </div>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {settings.memberLevel === 'global_partner' && settings.marketPartnerRate && (
+            <div className="flex justify-between items-center py-1.5 border-b border-blue-100">
+              <span className="text-cyan-700 font-medium">市场合伙人</span>
+              <span className="font-bold text-cyan-700">
+                {settings.marketPartnerRate}%
+                {settings.marketPartnerExtra! > 0 && (
+                  <span className="text-xs text-green-600 ml-1">
+                    (10% + {settings.marketPartnerExtra}%↑)
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+          
+          <div className="flex justify-between items-center py-1.5 border-b border-blue-100">
+            <span className="text-blue-700 font-medium">直推</span>
+            <span className="font-bold text-blue-700">
+              {settings.level1Rate}%
+              {settings.level1Extra > 0 && (
+                <span className="text-xs text-green-600 ml-1">
+                  (3% + {settings.level1Extra}%↑)
+                </span>
+              )}
+            </span>
+          </div>
+          
+          <div className="flex justify-between items-center py-1.5 border-b border-blue-100">
+            <span className="text-purple-700 font-medium">间推</span>
+            <span className="font-bold text-purple-700">
+              {settings.level2Rate}%
+              {settings.level2Extra > 0 && (
+                <span className="text-xs text-green-600 ml-1">
+                  (2% + {settings.level2Extra}%↑)
+                </span>
+              )}
+            </span>
+          </div>
+
+          {settings.extraRewardRight > 0 && (
+            <div className="flex justify-between items-center py-1.5 bg-amber-50 rounded px-2">
+              <span className="text-amber-700 font-medium">自己保留</span>
+              <span className="font-bold text-amber-700">{settings.selfRate}%</span>
+            </div>
+          )}
+        </div>
+
+        {settings.extraRewardRight > 0 && (
+          <div className="mt-2 text-xs text-gray-600 bg-gray-50 rounded p-2">
+            <span className="font-semibold">额外收益权:</span> {settings.extraRewardRight}% 
+            (已分配 {(settings.level1Extra + settings.level2Extra + 
+              (settings.marketPartnerExtra || 0) + settings.selfRate).toFixed(1)}%)
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderMemberCard = (member: Member, level: number = 0, isSearchResult: boolean = false) => {
     const children = getDirectChildren(member.wallet_address);
+    const allDescendants = getAllDescendants(member.wallet_address);
     const isExpanded = expandedMembers.has(member.wallet_address);
     const hasChildren = children.length > 0;
     const levelInfo = getLevelInfo(member.member_level);
+    
+    // 计算直推和间推
+    const directCount = children.length;
+    const indirectCount = allDescendants.length - directCount;
+    
+    // 获取佣金设置
+    const [commissionSettings, setCommissionSettings] = useState<CommissionSettings | null>(
+      commissionsCache.get(member.wallet_address) || null
+    );
+
+    useEffect(() => {
+      if (isExpanded && !commissionSettings) {
+        fetchCommissionSettings(member.wallet_address).then(setCommissionSettings);
+      }
+    }, [isExpanded]);
 
     return (
       <div key={member.id} className="relative">
@@ -181,22 +318,32 @@ export default function TeamPage() {
               </div>
 
               <div className="bg-purple-50 rounded-lg p-3">
-                <div className="text-xs text-purple-600 font-medium mb-1">团队</div>
-                <div className="flex items-center gap-2">
-                  <div className="text-lg font-bold text-purple-700">
-                    {member.team_size}
+                <div className="text-xs text-purple-600 font-medium mb-1">团队结构</div>
+                <div className="flex flex-col">
+                  <div className="text-sm font-bold text-purple-700">
+                    总{allDescendants.length}人
                   </div>
                   {hasChildren && (
-                    <button
-                      onClick={() => toggleExpand(member.wallet_address)}
-                      className="text-xs text-purple-600 hover:text-purple-800 font-medium"
-                    >
-                      (直推{children.length})
-                    </button>
+                    <div className="text-xs text-gray-600">
+                      直推{directCount} / 间推{indirectCount}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
+
+            {/* 层级限制提示 */}
+            <div className="mt-3 bg-gray-50 rounded-lg p-2 text-xs text-gray-700">
+              <span className="font-semibold">可发展层级:</span> 最多{levelInfo.maxDepth}级
+              {member.member_level === 'normal' && <span className="text-orange-600 ml-2">⚠️ 只能发展2级</span>}
+              {member.member_level === 'market_partner' && <span className="text-blue-600 ml-2">✓ 可发展20级</span>}
+              {member.member_level === 'global_partner' && <span className="text-green-600 ml-2">✓ 可发展100级</span>}
+            </div>
+
+            {/* 佣金设置显示 */}
+            {isExpanded && commissionSettings && (
+              <CommissionDisplay settings={commissionSettings} />
+            )}
           </div>
         </div>
 
@@ -238,16 +385,14 @@ export default function TeamPage() {
   const marketPartners = members.filter(m => m.member_level === 'market_partner').length;
   const globalPartners = members.filter(m => m.member_level === 'global_partner').length;
 
-  // 如果有搜索结果，计算其下级统计
-  let searchStats = null;
-  if (searchResult) {
+  const searchStats = searchResult ? (() => {
     const allDescendants = getAllDescendants(searchResult.wallet_address);
     const directChildren = getDirectChildren(searchResult.wallet_address);
-    
     const totalBalance = allDescendants.reduce((sum, m) => sum + parseFloat(m.ashva_balance), 0);
     
-    searchStats = {
+    return {
       directCount: directChildren.length,
+      indirectCount: allDescendants.length - directChildren.length,
       totalCount: allDescendants.length,
       totalBalance: totalBalance,
       levels: {
@@ -256,14 +401,14 @@ export default function TeamPage() {
         global: allDescendants.filter(m => m.member_level === 'global_partner').length,
       }
     };
-  }
+  })() : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">团队中心 🌳</h1>
-          <p className="text-gray-600">搜索会员查看其完整的下级网络</p>
+          <p className="text-gray-600">搜索会员查看完整团队网络和佣金设置</p>
         </div>
 
         {/* 搜索框 */}
@@ -303,18 +448,22 @@ export default function TeamPage() {
             <h3 className="text-xl font-bold text-yellow-900 mb-4">
               📊 {searchResult.wallet_address.substring(0, 10)}... 的团队统计
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-white rounded-lg p-4">
                 <div className="text-sm text-gray-600 mb-1">直推人数</div>
                 <div className="text-3xl font-bold text-blue-600">{searchStats.directCount}</div>
               </div>
               <div className="bg-white rounded-lg p-4">
+                <div className="text-sm text-gray-600 mb-1">间推人数</div>
+                <div className="text-3xl font-bold text-purple-600">{searchStats.indirectCount}</div>
+              </div>
+              <div className="bg-white rounded-lg p-4">
                 <div className="text-sm text-gray-600 mb-1">团队总人数</div>
-                <div className="text-3xl font-bold text-purple-600">{searchStats.totalCount}</div>
+                <div className="text-3xl font-bold text-green-600">{searchStats.totalCount}</div>
               </div>
               <div className="bg-white rounded-lg p-4">
                 <div className="text-sm text-gray-600 mb-1">团队总余额</div>
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-orange-600">
                   {(searchStats.totalBalance / 1000000).toFixed(2)}M
                 </div>
               </div>
@@ -341,16 +490,19 @@ export default function TeamPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="text-sm font-medium text-gray-600 mb-2">普通会员</div>
               <div className="text-4xl font-bold text-green-600">{normalMembers}</div>
+              <div className="text-xs text-gray-500 mt-1">最多2级</div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="text-sm font-medium text-gray-600 mb-2">市场合伙人</div>
               <div className="text-4xl font-bold text-purple-600">{marketPartners}</div>
+              <div className="text-xs text-gray-500 mt-1">最多20级</div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="text-sm font-medium text-gray-600 mb-2">全球合伙人</div>
               <div className="text-4xl font-bold text-orange-600">{globalPartners}</div>
+              <div className="text-xs text-gray-500 mt-1">最多100级</div>
             </div>
           </div>
         )}
@@ -415,10 +567,10 @@ export default function TeamPage() {
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
           <h3 className="text-lg font-bold text-blue-900 mb-3">💡 使用说明</h3>
           <ul className="space-y-2 text-blue-800">
-            <li>• <span className="font-bold">搜索功能</span>：输入钱包地址（完整或部分）可以查找指定会员</li>
-            <li>• <span className="font-bold">团队统计</span>：搜索后显示该会员的直推人数、团队总人数、团队总余额</li>
-            <li>• <span className="font-bold">查看下级</span>：点击 + 按钮展开查看所有直推下级的详细信息</li>
-            <li>• <span className="font-bold">递归展开</span>：可以继续展开下级的下级，查看完整的推荐网络</li>
+            <li>• <span className="font-bold">搜索功能</span>：输入钱包地址查找会员，查看完整团队和佣金设置</li>
+            <li>• <span className="font-bold">团队统计</span>：显示直推、间推人数和团队总余额</li>
+            <li>• <span className="font-bold">佣金设置</span>：点击 + 展开查看会员的完整佣金分配设置</li>
+            <li>• <span className="font-bold">层级限制</span>：普通会员2级 / 市场合伙人20级 / 全球合伙人100级</li>
           </ul>
         </div>
       </div>
