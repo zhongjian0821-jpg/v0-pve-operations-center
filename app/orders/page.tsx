@@ -8,8 +8,14 @@ const Header = ({ admin, onLogout }: any) => (
     <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
       <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">PVE 运营中心</h1>
       <div className="flex items-center gap-4">
-        <span className="text-slate-400">欢迎，<span className="text-white">{admin?.username}</span></span>
-        <button onClick={onLogout} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg">退出</button>
+        {admin ? (
+          <>
+            <span className="text-slate-400">欢迎，<span className="text-white">{admin.username}</span></span>
+            <button onClick={onLogout} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg">退出</button>
+          </>
+        ) : (
+          <a href="/login" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">登录</a>
+        )}
       </div>
     </div>
   </header>
@@ -48,6 +54,7 @@ export default function OrdersPage() {
   const [stats, setStats] = useState<any>(null)
   const [admin, setAdmin] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'cloud' | 'image'>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'inactive'>('all')
 
@@ -57,16 +64,27 @@ export default function OrdersPage() {
 
   const loadData = async () => {
     try {
-      const [adminData, ordersData] = await Promise.all([
-        api.getMe(), 
-        api.getOrders()
-      ])
+      setError(null)
       
+      // 先检查登录状态
+      const adminData = await api.getMe()
       setAdmin(adminData.admin)
+      
+      // 如果已登录，加载订单数据
+      const ordersData = await api.getOrders()
       setOrders(ordersData.orders || [])
       setStats(ordersData.stats || {})
-    } catch (err) {
-      window.location.href = '/login'
+      
+    } catch (err: any) {
+      console.error('Load data error:', err)
+      setError(err.message || '加载失败')
+      
+      // 如果是未授权错误，重定向到登录页
+      if (err.message?.includes('Unauthorized') || err.message?.includes('401')) {
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 2000)
+      }
     } finally {
       setLoading(false)
     }
@@ -103,8 +121,23 @@ export default function OrdersPage() {
   })
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
-      <div className="text-blue-400">加载中...</div>
+    <div className="min-h-screen bg-slate-950">
+      <Header admin={admin} onLogout={() => { api.logout(); window.location.href = '/login'; }} />
+      <div className="flex items-center justify-center h-96">
+        <div className="text-blue-400">加载中...</div>
+      </div>
+    </div>
+  )
+
+  if (error) return (
+    <div className="min-h-screen bg-slate-950">
+      <Header admin={admin} onLogout={() => { api.logout(); window.location.href = '/login'; }} />
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="text-red-400 text-xl mb-4">❌ {error}</div>
+          <a href="/login" className="text-blue-400 hover:underline">返回登录</a>
+        </div>
+      </div>
     </div>
   )
 
