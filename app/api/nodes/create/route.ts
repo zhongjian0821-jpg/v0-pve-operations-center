@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
         node_id,
         wallet_address,
         node_type,
+        node_category,
         status,
         purchase_price,
         staking_amount,
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
         nodeId,
         wallet_address,
         node_type,
+        node_type, // node_category same as node_type
         'pending',
         purchase_price || 0,
         staking_amount || 0,
