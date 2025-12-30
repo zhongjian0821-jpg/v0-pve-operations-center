@@ -27,7 +27,8 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.294.0",
     "tailwind-merge": "^2.1.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "@radix-ui/react-tabs": "^1.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
