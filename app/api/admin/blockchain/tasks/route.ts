@@ -9,39 +9,45 @@ export async function GET(request: NextRequest) {
     const nodeId = searchParams.get('node_id');
     const machineId = searchParams.get('machine_id');
     
-    let query = `
-      SELECT 
-        t.*,
-        m.machine_name,
-        m.ip_address,
-        m.cpu_cores,
-        m.memory_gb,
-        m.storage_gb
-      FROM bl_blockchain_nodes t
-      LEFT JOIN bl_machines m ON t.machine_id = m.id
-      WHERE 1=1
-    `;
+    let tasks;
     
-    const params: any[] = [];
-    
-    if (status) {
-      query += ` AND t.status = $${params.length + 1}`;
-      params.push(status);
+    if (status || nodeId || machineId) {
+      // 有筛选条件
+      let conditions = [];
+      if (status) conditions.push(`t.status = '${status}'`);
+      if (nodeId) conditions.push(`t.node_id = '${nodeId}'`);
+      if (machineId) conditions.push(`t.machine_id = ${machineId}`);
+      
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      
+      tasks = await sql`
+        SELECT 
+          t.*,
+          m.machine_name,
+          m.ip_address,
+          m.cpu_cores,
+          m.memory_gb,
+          m.storage_gb
+        FROM bl_blockchain_nodes t
+        LEFT JOIN bl_machines m ON t.machine_id = m.id
+        ${sql(whereClause)}
+        ORDER BY t.created_at DESC
+      `;
+    } else {
+      // 无筛选，查询所有
+      tasks = await sql`
+        SELECT 
+          t.*,
+          m.machine_name,
+          m.ip_address,
+          m.cpu_cores,
+          m.memory_gb,
+          m.storage_gb
+        FROM bl_blockchain_nodes t
+        LEFT JOIN bl_machines m ON t.machine_id = m.id
+        ORDER BY t.created_at DESC
+      `;
     }
-    
-    if (nodeId) {
-      query += ` AND t.node_id = $${params.length + 1}`;
-      params.push(nodeId);
-    }
-    
-    if (machineId) {
-      query += ` AND t.machine_id = $${params.length + 1}`;
-      params.push(machineId);
-    }
-    
-    query += ` ORDER BY t.created_at DESC`;
-    
-    const tasks = await sql.unsafe(query, params);
     
     return NextResponse.json({
       success: true,
