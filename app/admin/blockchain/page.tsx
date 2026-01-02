@@ -2,348 +2,560 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Server, Activity, DollarSign, Cpu, HardDrive } from 'lucide-react';
+
+type TabType = 'customers' | 'machines' | 'nodes' | 'admins' | 'deployment';
 
 export default function BlockchainManagementPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('customers');
+  const [customers, setCustomers] = useState<any[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
+  const [nodes, setNodes] = useState<any[]>([]);
+  const [earnings, setEarnings] = useState<any[]>([]);
+  const [deployedNodes, setDeployedNodes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deploying, setDeploying] = useState(false);
+  
+  // 部署表单状态
   const [deployForm, setDeployForm] = useState({
-    taskType: 'cosmos',
-    taskName: '',
-    nodeId: '',
-    walletAddress: ''
+    nodeType: 'Cosmos',
+    nodeName: '',
+    machineId: '',
+    walletAddress: '',
   });
 
   useEffect(() => {
-    loadData();
+    // 加载各种数据
+    Promise.all([
+      fetch('/api/admin/blockchain/customers').then(r => r.json()),
+      fetch('/api/admin/blockchain/machines').then(r => r.json()),
+      fetch('/api/admin/blockchain/nodes').then(r => r.json()),
+      fetch('/api/admin/blockchain/earnings').then(r => r.json()),
+      fetch('/api/admin/blockchain/deployment').then(r => r.json()),
+    ]).then(([customersData, machinesData, nodesData, earningsData, deploymentData]) => {
+      if (customersData.success) setCustomers(customersData.data || []);
+      if (machinesData.success) setMachines(machinesData.data || []);
+      if (nodesData.success) setNodes(nodesData.data || []);
+      if (earningsData.success) setEarnings(earningsData.data || []);
+      if (deploymentData.success) setDeployedNodes(deploymentData.data || []);
+      setLoading(false);
+    }).catch(err => {
+      console.error('加载失败:', err);
+      setLoading(false);
+    });
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [machinesRes, tasksRes] = await Promise.all([
-        fetch('/api/admin/blockchain/machines'),
-        fetch('/api/admin/blockchain/nodes')
-      ]);
-      
-      const machinesData = await machinesRes.json();
-      const tasksData = await tasksRes.json();
-      
-      if (machinesData.success) setMachines(machinesData.data || []);
-      if (tasksData.success) setTasks(tasksData.data || []);
-    } catch (err) {
-      console.error('加载失败:', err);
-    }
-  };
-
-  const nodeTypes = [
-    { value: 'cosmos', label: 'Cosmos Hub', hourly: 0.22, daily: 5.20 },
-    { value: 'polygon', label: 'Polygon', hourly: 0.35, daily: 8.50 },
-    { value: 'near', label: 'NEAR', hourly: 0.26, daily: 6.30 },
-    { value: 'sui', label: 'Sui', hourly: 0.53, daily: 12.80 }
-  ];
-
-  const stats = {
-    totalMachines: machines.length,
-    totalTasks: tasks.length,
-    runningTasks: tasks.filter(t => t.status === 'running').length,
-    totalHourly: tasks.filter(t => t.status === 'running').reduce((sum, t) => {
-      const type = nodeTypes.find(nt => nt.value === t.node_type);
-      return sum + (type?.hourly || 0);
-    }, 0).toFixed(2),
-    totalDaily: (parseFloat(stats?.totalHourly || '0') * 24).toFixed(2)
-  };
-
   const handleDeploy = async () => {
-    if (!selectedMachine || !deployForm.taskName) {
-      alert('请选择机器并填写任务名称');
+    if (!deployForm.nodeName || !deployForm.machineId || !deployForm.walletAddress) {
+      alert('请填写完整信息');
       return;
     }
 
-    const machine = machines.find(m => m.id === selectedMachine);
-    if (!machine) return;
-
+    setDeploying(true);
     try {
-      const response = await fetch('/api/admin/blockchain/deploy', {
+      const response = await fetch('/api/admin/blockchain/deployment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          taskName: deployForm.taskName,
-          nodeType: deployForm.taskType,
-          nodeId: deployForm.nodeId,
-          machineId: selectedMachine,
-          walletAddress: deployForm.walletAddress,
-          serverIp: machine.ip_address,
-          sshPort: machine.ssh_port,
-          sshUser: machine.ssh_user,
-          sshPassword: machine.ssh_password
-        })
+          action: 'deploy',
+          node_type: deployForm.nodeType,
+          node_name: deployForm.nodeName,
+          machine_id: deployForm.machineId,
+          wallet_address: deployForm.walletAddress,
+        }),
       });
 
       const result = await response.json();
-      
       if (result.success) {
-        alert('✅ 部署成功！');
-        loadData();
-        setDeployForm({ taskType: 'cosmos', taskName: '', nodeId: '', walletAddress: '' });
-        setSelectedMachine(null);
+        alert('节点部署成功！');
+        // 重新加载节点列表
+        const deploymentData = await fetch('/api/admin/blockchain/deployment').then(r => r.json());
+        if (deploymentData.success) setDeployedNodes(deploymentData.data || []);
+        // 清空表单
+        setDeployForm({ nodeType: 'Cosmos', nodeName: '', machineId: '', walletAddress: '' });
       } else {
-        alert('❌ 部署失败: ' + result.error);
+        alert('部署失败: ' + result.error);
       }
     } catch (error: any) {
-      alert('❌ 部署失败: ' + error.message);
+      alert('部署出错: ' + error.message);
+    } finally {
+      setDeploying(false);
     }
   };
 
+  const handleNodeAction = async (nodeId: string, action: 'start' | 'stop' | 'delete' | 'logs') => {
+    try {
+      if (action === 'delete' && !confirm('确定要删除这个节点吗？')) {
+        return;
+      }
+
+      const response = await fetch('/api/admin/blockchain/deployment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          container_name: nodeId,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        if (action === 'logs') {
+          alert('节点日志:\n' + result.logs);
+        } else {
+          alert(`操作成功！`);
+          // 重新加载节点列表
+          const deploymentData = await fetch('/api/admin/blockchain/deployment').then(r => r.json());
+          if (deploymentData.success) setDeployedNodes(deploymentData.data || []);
+        }
+      } else {
+        alert('操作失败: ' + result.error);
+      }
+    } catch (error: any) {
+      alert('操作出错: ' + error.message);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="text-gray-600">加载中...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: 'customers', label: '区块链客户', count: customers.length },
+    { id: 'machines', label: '区块链机器', count: machines.length },
+    { id: 'nodes', label: '区块链节点', count: nodes.length },
+    { id: 'admins', label: '收益管理', count: earnings.length },
+    { id: 'deployment', label: '节点部署与管理', count: deployedNodes.length },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 p-6">
-      <div className="max-w-[1800px] mx-auto space-y-6">
-        
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">区块链任务管理中心</h1>
-          <p className="text-gray-400">管理机器 · 部署任务 · 监控收益</p>
-        </div>
+    <div className="p-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">区块链管理中心</h1>
+        <p className="text-gray-600 mt-2">统一管理区块链相关业务</p>
+      </div>
 
-        {/* 顶部统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <Card className="bg-blue-500/20 border-blue-500/30 p-4">
-            <div className="flex items-center gap-3">
-              <Server className="w-8 h-8 text-blue-400" />
-              <div>
-                <div className="text-2xl font-bold text-white">{stats.totalMachines}</div>
-                <div className="text-sm text-gray-400">总机器数</div>
+      {/* 标签导航 */}
+      <div className="flex gap-2 mb-6 border-b overflow-x-auto">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as TabType)}
+            className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* 区块链客户标签 */}
+      {activeTab === 'customers' && (
+        <Card>
+          <CardHeader><CardTitle>区块链客户列表</CardTitle></CardHeader>
+          <CardContent>
+            {customers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">暂无客户数据</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-4">ID</th>
+                      <th className="text-left p-4">钱包地址</th>
+                      <th className="text-right p-4">节点数量</th>
+                      <th className="text-right p-4">总投资</th>
+                      <th className="text-right p-4">注册时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers.map((customer: any) => (
+                      <tr key={customer.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4">{customer.id}</td>
+                        <td className="p-4 font-mono text-sm">
+                          {customer.wallet_address?.substring(0, 20)}...
+                        </td>
+                        <td className="text-right p-4 font-bold">
+                          {customer.node_count || 0}
+                        </td>
+                        <td className="text-right p-4 font-bold">
+                          ${(customer.total_investment || 0).toFixed(2)}
+                        </td>
+                        <td className="text-right p-4">
+                          {new Date(customer.created_at).toLocaleDateString('zh-CN')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          <Card className="bg-green-500/20 border-green-500/30 p-4">
-            <div className="flex items-center gap-3">
-              <Activity className="w-8 h-8 text-green-400" />
-              <div>
-                <div className="text-2xl font-bold text-white">{stats.totalTasks}</div>
-                <div className="text-sm text-gray-400">总任务数</div>
-                <div className="text-xs text-green-400">{stats.runningTasks} 运行中</div>
+      {/* 区块链机器标签 */}
+      {activeTab === 'machines' && (
+        <Card>
+          <CardHeader><CardTitle>区块链机器列表</CardTitle></CardHeader>
+          <CardContent>
+            {machines.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">暂无机器数据</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-4">机器ID</th>
+                      <th className="text-left p-4">IP地址</th>
+                      <th className="text-center p-4">CPU</th>
+                      <th className="text-center p-4">内存</th>
+                      <th className="text-center p-4">状态</th>
+                      <th className="text-right p-4">运行节点数</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {machines.map((machine: any) => (
+                      <tr key={machine.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4 font-mono text-sm">{machine.machine_id}</td>
+                        <td className="p-4 font-mono text-sm">{machine.ip_address}</td>
+                        <td className="text-center p-4">{machine.cpu_cores || 'N/A'}</td>
+                        <td className="text-center p-4">{machine.memory_gb || 'N/A'}GB</td>
+                        <td className="text-center p-4">
+                          <span className={`px-2 py-1 rounded text-sm ${
+                            machine.status === 'online' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {machine.status === 'online' ? '在线' : '离线'}
+                          </span>
+                        </td>
+                        <td className="text-right p-4 font-bold">
+                          {machine.node_count || 0}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          <Card className="bg-yellow-500/20 border-yellow-500/30 p-4">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-yellow-400" />
-              <div>
-                <div className="text-2xl font-bold text-white">${stats.totalHourly}</div>
-                <div className="text-sm text-gray-400">每小时收益</div>
+      {/* 区块链节点标签 */}
+      {activeTab === 'nodes' && (
+        <Card>
+          <CardHeader><CardTitle>区块链节点列表</CardTitle></CardHeader>
+          <CardContent>
+            {nodes.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">暂无节点数据</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-4">节点ID</th>
+                      <th className="text-left p-4">类型</th>
+                      <th className="text-left p-4">所属机器</th>
+                      <th className="text-center p-4">状态</th>
+                      <th className="text-right p-4">日收益</th>
+                      <th className="text-right p-4">运行时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nodes.map((node: any) => (
+                      <tr key={node.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4 font-mono text-sm">{node.node_id}</td>
+                        <td className="p-4">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                            {node.node_type}
+                          </span>
+                        </td>
+                        <td className="p-4 font-mono text-sm">{node.machine_id}</td>
+                        <td className="text-center p-4">
+                          <span className={`px-2 py-1 rounded text-sm ${
+                            node.status === 'running' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {node.status === 'running' ? '运行中' : '维护中'}
+                          </span>
+                        </td>
+                        <td className="text-right p-4 font-bold">
+                          ${(node.daily_earnings || 0).toFixed(2)}
+                        </td>
+                        <td className="text-right p-4">
+                          {node.uptime_days || 0} 天
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          <Card className="bg-purple-500/20 border-purple-500/30 p-4 col-span-3">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-purple-400" />
-              <div>
-                <div className="text-2xl font-bold text-white">${stats.totalDaily}</div>
-                <div className="text-sm text-gray-400">每日收益 · 月度预计: ${(parseFloat(stats.totalDaily) * 30).toFixed(2)}</div>
+      {/* 收益管理标签 */}
+      {activeTab === 'admins' && (
+        <Card>
+          <CardHeader><CardTitle>区块链收益管理</CardTitle></CardHeader>
+          <CardContent>
+            {earnings.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">暂无收益数据</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-4">ID</th>
+                      <th className="text-left p-4">钱包地址</th>
+                      <th className="text-right p-4">收益金额</th>
+                      <th className="text-left p-4">来源</th>
+                      <th className="text-right p-4">时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {earnings.map((earning: any) => (
+                      <tr key={earning.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4">{earning.id}</td>
+                        <td className="p-4 font-mono text-sm">
+                          {earning.wallet_address?.substring(0, 20)}...
+                        </td>
+                        <td className="text-right p-4 font-bold text-green-600">
+                          ${(earning.amount || 0).toFixed(2)}
+                        </td>
+                        <td className="p-4">{earning.source || 'N/A'}</td>
+                        <td className="text-right p-4">
+                          {new Date(earning.created_at).toLocaleDateString('zh-CN')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-        {/* 三列布局 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* 左侧：机器列表 */}
-          <div className="lg:col-span-4">
-            <Card className="bg-gray-800/50 border-gray-700 p-6">
-              <h2 className="text-xl font-bold text-white mb-4">机器列表 ({machines.length})</h2>
-              
-              <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                {machines.map(machine => {
-                  const machineTasks = tasks.filter(t => t.machine_id === machine.id);
-                  const isPending = machineTasks.length === 0;
-                  
-                  return (
-                    <Card 
-                      key={machine.id}
-                      className={`p-4 cursor-pointer transition-all ${
-                        selectedMachine === machine.id
-                          ? 'bg-blue-500/30 border-blue-500'
-                          : isPending
-                          ? 'bg-orange-500/10 border-orange-500/50 hover:bg-orange-500/20'
-                          : 'bg-gray-700/30 border-gray-600 hover:bg-gray-700/50'
-                      }`}
-                      onClick={() => setSelectedMachine(machine.id)}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="font-bold text-white">{machine.machine_name}</div>
-                          <div className="text-sm text-gray-400">{machine.ip_address}</div>
-                        </div>
-                        {isPending && (
-                          <Badge className="bg-orange-500">待部署</Badge>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-300">
-                        <div className="flex items-center gap-1">
-                          <Cpu className="w-3 h-3" />
-                          {machine.cpu_cores} 核
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <HardDrive className="w-3 h-3" />
-                          {machine.memory_gb} GB
-                        </div>
-                      </div>
-
-                      <div className="mt-2 pt-2 border-t border-gray-600">
-                        <div className="text-xs text-gray-400">
-                          运行任务: {machineTasks.length} 个
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
+      {/* 节点部署与管理标签 - 新增 */}
+      {activeTab === 'deployment' && (
+        <div className="space-y-6">
+          {/* 统计卡片 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600">
+                    {deployedNodes.length}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">总节点数</div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600">
+                    {deployedNodes.filter(n => n.status === 'running').length}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">🟢 运行中</div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-red-600">
+                    {deployedNodes.filter(n => n.status === 'stopped').length}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">🔴 已停止</div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-yellow-600">
+                    {deployedNodes.filter(n => n.status === 'deploying').length}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-2">🟡 部署中</div>
+                </div>
+              </CardContent>
             </Card>
           </div>
 
-          {/* 中间：任务统计 */}
-          <div className="lg:col-span-5">
-            <Card className="bg-gray-800/50 border-gray-700 p-6">
-              <h2 className="text-xl font-bold text-white mb-4">任务类型统计</h2>
-
-              <div className="space-y-4">
-                {nodeTypes.map(type => {
-                  const typeTasks = tasks.filter(t => t.node_type === type.value);
-                  const running = typeTasks.filter(t => t.status === 'running').length;
-                  
-                  return (
-                    <Card key={type.value} className="bg-gray-700/30 border-gray-600 p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-bold text-white">{type.label}</div>
-                          <div className="text-sm text-gray-400">
-                            {typeTasks.length} 台机器 · {running} 运行中
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-green-400">
-                            ${(running * type.hourly).toFixed(2)}/时
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            ${(running * type.daily).toFixed(2)}/天
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              <h3 className="text-lg font-bold text-white mt-6 mb-3">所有运行任务</h3>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {tasks.map(task => (
-                  <Card key={task.id} className="bg-gray-700/30 border-gray-600 p-3">
-                    <div className="flex justify-between">
-                      <div>
-                        <div className="font-medium text-white">{task.task_name}</div>
-                        <div className="text-xs text-gray-400">
-                          {nodeTypes.find(nt => nt.value === task.node_type)?.label}
-                        </div>
-                      </div>
-                      <Badge className={
-                        task.status === 'running' ? 'bg-green-500' :
-                        task.status === 'stopped' ? 'bg-yellow-500' : 'bg-red-500'
-                      }>
-                        {task.status}
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </Card>
-          </div>
-
-          {/* 右侧：部署表单 */}
-          <div className="lg:col-span-3">
-            <Card className="bg-gray-800/50 border-gray-700 p-6 sticky top-6">
-              <h2 className="text-xl font-bold text-white mb-4">部署新任务</h2>
-
-              <div className="space-y-4">
+          {/* 部署区域 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>🚀 部署新节点</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-white text-sm mb-2 block">任务类型</label>
+                  <label className="block text-sm font-medium mb-2">区块链类型</label>
                   <select 
-                    className="w-full bg-gray-700 border-gray-600 text-white p-2 rounded"
-                    value={deployForm.taskType}
-                    onChange={(e) => setDeployForm({...deployForm, taskType: e.target.value})}
+                    className="w-full p-2 border rounded"
+                    value={deployForm.nodeType}
+                    onChange={(e) => setDeployForm({...deployForm, nodeType: e.target.value})}
                   >
-                    {nodeTypes.map(type => (
-                      <option key={type.value} value={type.value}>
-                        {type.label} (${type.hourly}/时)
+                    <option>Cosmos</option>
+                    <option>Ethereum</option>
+                    <option>Bitcoin</option>
+                    <option>Polkadot</option>
+                    <option>Solana</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">节点名称</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 border rounded" 
+                    placeholder="my-cosmos-node"
+                    value={deployForm.nodeName}
+                    onChange={(e) => setDeployForm({...deployForm, nodeName: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">分配机器</label>
+                  <select 
+                    className="w-full p-2 border rounded"
+                    value={deployForm.machineId}
+                    onChange={(e) => setDeployForm({...deployForm, machineId: e.target.value})}
+                  >
+                    <option value="">请选择...</option>
+                    {machines.map(m => (
+                      <option key={m.machine_id} value={m.machine_id}>
+                        {m.machine_id} ({m.ip_address})
                       </option>
                     ))}
                   </select>
                 </div>
-
+                
                 <div>
-                  <label className="text-white text-sm mb-2 block">任务名称</label>
-                  <Input
-                    placeholder="例如: validator-1"
-                    className="bg-gray-700 border-gray-600 text-white"
-                    value={deployForm.taskName}
-                    onChange={(e) => setDeployForm({...deployForm, taskName: e.target.value})}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-white text-sm mb-2 block">Node ID</label>
-                  <Input
-                    placeholder="例如: node-001"
-                    className="bg-gray-700 border-gray-600 text-white"
-                    value={deployForm.nodeId}
-                    onChange={(e) => setDeployForm({...deployForm, nodeId: e.target.value})}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-white text-sm mb-2 block">钱包地址</label>
-                  <Input
-                    placeholder="例如: cosmos1abc..."
-                    className="bg-gray-700 border-gray-600 text-white"
+                  <label className="block text-sm font-medium mb-2">钱包地址</label>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 border rounded" 
+                    placeholder="0x..."
                     value={deployForm.walletAddress}
                     onChange={(e) => setDeployForm({...deployForm, walletAddress: e.target.value})}
                   />
                 </div>
-
-                <Button 
-                  onClick={handleDeploy}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                  disabled={!selectedMachine || !deployForm.taskName}
-                >
-                  立即部署任务
-                </Button>
-
-                {deployForm.taskType && (
-                  <Card className="bg-green-500/20 border-green-500/30 p-3">
-                    <div className="text-sm text-white">
-                      <div className="font-bold mb-1">预计收益</div>
-                      <div className="text-xs text-green-300">
-                        每小时: ${nodeTypes.find(t => t.value === deployForm.taskType)?.hourly}
-                      </div>
-                      <div className="text-xs text-green-300">
-                        每天: ${nodeTypes.find(t => t.value === deployForm.taskType)?.daily}
-                      </div>
-                    </div>
-                  </Card>
-                )}
               </div>
-            </Card>
-          </div>
-        </div>
+              
+              <button 
+                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+                disabled={deploying}
+                onClick={handleDeploy}
+              >
+                {deploying ? '⏳ 部署中...' : '🚀 部署节点'}
+              </button>
+            </CardContent>
+          </Card>
 
-      </div>
+          {/* 已部署节点列表 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>已部署节点列表</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {deployedNodes.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">暂无部署的节点</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-4">节点ID</th>
+                        <th className="text-left p-4">类型</th>
+                        <th className="text-center p-4">状态</th>
+                        <th className="text-left p-4">所属机器</th>
+                        <th className="text-right p-4">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deployedNodes.map((node: any) => (
+                        <tr key={node.id} className="border-b hover:bg-gray-50">
+                          <td className="p-4 font-mono text-sm">{node.node_id}</td>
+                          <td className="p-4">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                              {node.type}
+                            </span>
+                          </td>
+                          <td className="text-center p-4">
+                            <span className={`px-2 py-1 rounded text-sm ${
+                              node.status === 'running' ? 'bg-green-100 text-green-800' :
+                              node.status === 'stopped' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {node.status === 'running' ? '🟢 运行中' :
+                               node.status === 'stopped' ? '🔴 已停止' : '🟡 部署中'}
+                            </span>
+                          </td>
+                          <td className="p-4 font-mono text-sm">{node.machine_id}</td>
+                          <td className="text-right p-4">
+                            <div className="flex gap-2 justify-end">
+                              <button 
+                                className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
+                                onClick={() => handleNodeAction(node.node_id, 'start')}
+                              >
+                                启动
+                              </button>
+                              <button 
+                                className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 text-sm"
+                                onClick={() => handleNodeAction(node.node_id, 'stop')}
+                              >
+                                停止
+                              </button>
+                              <button 
+                                className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
+                                onClick={() => handleNodeAction(node.node_id, 'delete')}
+                              >
+                                删除
+                              </button>
+                              <button 
+                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                                onClick={() => handleNodeAction(node.node_id, 'logs')}
+                              >
+                                日志
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
