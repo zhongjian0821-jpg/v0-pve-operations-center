@@ -1,16 +1,21 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import ws from 'ws';
+import { neon } from '@neondatabase/serverless';
 
-// 配置 WebSocket (仅在非 Edge 环境)
-if (typeof WebSocket === 'undefined') {
-  neonConfig.webSocketConstructor = ws;
+// 创建 sql 函数（主要使用）
+const sql = neon(process.env.DATABASE_URL!);
+
+// 导出 sql 函数（推荐使用）
+export { sql };
+
+// 默认导出也是 sql（兼容性）
+export default sql;
+
+// 辅助查询函数
+export async function query(text: string, params?: any[]) {
+  try {
+    const result = await sql(text, params);
+    return result;
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  }
 }
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-export default pool;
-
-// 兼容旧的查询方式
-export { pool };
