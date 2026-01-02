@@ -1,61 +1,50 @@
 // app/api/admin/blockchain/import-linghan-devices/route.ts
-// 一键导入已有的灵瀚云设备 - 改进版
+// 批量导入灵瀚云设备 - 支持自定义设备ID列表
 
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAdmin, successResponse, errorResponse } from '@/lib/api-utils';
 
-// 26个已绑定的灵瀚云设备ID
-const EXISTING_DEVICE_IDS = [
-  'bf50d906032f4c9847ab8325f3d2f800',
-  'cc738ba7b3f22023469d4d74ce91716b',
-  '737c791c894063799e4198af2a1f0bf3',
-  '134362593cd952e13cbc1b69f546bb83',
-  '5f73c1969848d432c538bd58cc0cc2e3',
-  '125bfe907a6c3690986b7fbfea17d4d5',
-  '2eb8385a0cd5d778fe1ec34b266b40b3',
-  '3afd8908af677ae6964abb0364a53282',
-  '9ff908a5ab3c5006f7a30587c5c610f5',
-  '2d2733e0eaa36a3e275beecb0c5351e5',
-  'cb3c20f05cd89728af14473653401f8d',
-  '64ffb4f27fbe27f56feffa35c7df7e6c',
-  '5f52e25f7bba7f4473c68de0313b23bc',
-  '902f4cdd53f7bb2648f5c889cd619ea0',
-  '87210372d2ddcbff8ee16a67f2202fb4',
-  '45b1409ac125b2f755153846c33c97e8',
-  '0b0e8e9ee416bfa14ee79448df0c65cd',
-  '67ee6dbedb3ce054c4afce3a448d2487',
-  '8270e97698cadf622c5ff615c9391d84',
-  '5aa8e72a0e42e967ec3a1785378fe79d',
-  '1f075dad24e5a97b927ceac4462ee665',
-  '38ea4444beb10a02e95ecd9ed09746e7',
-  '008c4a9a7e36cc4f4a0931afcf42abc6',
-  '79b9f541c06c733bdb095850158e4804',
-  '150873b1f0aab4b1b9b0d3a72ce40eb3',
-  '4074455e1ed475f21ac6e86a0bd9690f'
-];
-
 export async function POST(request: NextRequest) {
   try {
     requireAdmin(request);
+    
+    // 获取请求体中的设备ID列表
+    const body = await request.json();
+    const deviceIds = body.deviceIds || [];
+    
+    if (!Array.isArray(deviceIds) || deviceIds.length === 0) {
+      return errorResponse('请提供至少一个设备ID', 400);
+    }
     
     const imported: any[] = [];
     const skipped: any[] = [];
     const failed: any[] = [];
     
-    for (const deviceId of EXISTING_DEVICE_IDS) {
+    for (const deviceId of deviceIds) {
       try {
+        // 验证设备ID格式
+        if (typeof deviceId !== 'string' || deviceId.trim().length === 0) {
+          failed.push({
+            deviceId: String(deviceId).substring(0, 16),
+            reason: '无效的设备ID'
+          });
+          continue;
+        }
+        
+        const cleanDeviceId = deviceId.trim();
+        
         // 检查是否已经导入
         const existing = await sql`
           SELECT id, machine_id, config 
-          FROM bl_blockchain_nodes 
+          FROM blockchain_nodes 
           WHERE node_type = 'linghan' 
-          AND config::text LIKE ${`%${deviceId}%`}
+          AND config::text LIKE ${`%${cleanDeviceId}%`}
         `;
         
         if (existing.length > 0) {
           skipped.push({
-            deviceId: deviceId.substring(0, 8) + '...',
+            deviceId: cleanDeviceId.substring(0, 8) + '...',
             reason: '已存在',
             nodeId: existing[0].id,
             machineId: existing[0].machine_id
@@ -69,7 +58,7 @@ export async function POST(request: NextRequest) {
         // 检查是否有未使用的机器
         const availableMachine = await sql`
           SELECT id, machine_name 
-          FROM bl_machines 
+          FROM machines 
           WHERE status = 'pending' 
           ORDER BY id ASC 
           LIMIT 1
@@ -79,9 +68,9 @@ export async function POST(request: NextRequest) {
           machineId = availableMachine[0].id;
         } else {
           // 创建虚拟机器记录
-          const machineCode = `LH-${deviceId.substring(0, 8)}`;
+          const machineCode = `LH-${cleanDeviceId.substring(0, 8)}`;
           const newMachine = await sql`
-            INSERT INTO bl_machines (
+            INSERT INTO machines (
               activation_code,
               machine_code,
               machine_name,
@@ -91,7 +80,7 @@ export async function POST(request: NextRequest) {
             ) VALUES (
               ${machineCode},
               ${machineCode},
-              ${`灵瀚云-${deviceId.substring(0, 8)}`},
+              ${`灵瀚云-${cleanDeviceId.substring(0, 8)}`},
               'active',
               NOW(),
               NOW()
@@ -103,7 +92,7 @@ export async function POST(request: NextRequest) {
         
         // 创建灵瀚云节点记录
         const nodeResult = await sql`
-          INSERT INTO bl_blockchain_nodes (
+          INSERT INTO blockchain_nodes (
             machine_id,
             node_type,
             task_name,
@@ -114,10 +103,10 @@ export async function POST(request: NextRequest) {
           ) VALUES (
             ${machineId},
             'linghan',
-            ${`灵瀚云设备-${deviceId.substring(0, 8)}`},
+            ${`灵瀚云设备-${cleanDeviceId.substring(0, 8)}`},
             'running',
             ${JSON.stringify({
-              device_id: deviceId,
+              device_id: cleanDeviceId,
               imported: true,
               import_date: new Date().toISOString(),
               source: 'batch_import'
@@ -129,24 +118,23 @@ export async function POST(request: NextRequest) {
         `;
         
         imported.push({
-          deviceId: deviceId.substring(0, 8) + '...',
+          deviceId: cleanDeviceId.substring(0, 8) + '...',
           machineId: machineId,
           nodeId: nodeResult[0].id,
           taskName: nodeResult[0].task_name
         });
         
       } catch (error: any) {
-        // 记录导入失败的设备
         failed.push({
-          deviceId: deviceId.substring(0, 8) + '...',
+          deviceId: String(deviceId).substring(0, 16),
           reason: error.message || '未知错误'
         });
       }
     }
     
-    // 构建详细的响应消息
+    // 构建响应
     const summary = {
-      total: EXISTING_DEVICE_IDS.length,
+      total: deviceIds.length,
       imported: imported.length,
       skipped: skipped.length,
       failed: failed.length
@@ -154,15 +142,15 @@ export async function POST(request: NextRequest) {
     
     return successResponse({
       message: '灵瀚云设备导入完成',
-      summary,
+      data: summary,
       details: {
-        imported: imported.slice(0, 5), // 只返回前5个成功的
-        skipped: skipped.slice(0, 5),   // 只返回前5个跳过的
-        failed: failed.slice(0, 5),     // 只返回前5个失败的
+        imported: imported.slice(0, 10),
+        skipped: skipped.slice(0, 10),
+        failed: failed.slice(0, 10),
         hasMore: {
-          imported: imported.length > 5,
-          skipped: skipped.length > 5,
-          failed: failed.length > 5
+          imported: imported.length > 10,
+          skipped: skipped.length > 10,
+          failed: failed.length > 10
         }
       }
     });
