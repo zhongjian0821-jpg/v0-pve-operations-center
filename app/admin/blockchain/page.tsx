@@ -1281,7 +1281,9 @@ export default function BlockchainManagementPage() {
                           </div>
                           <div className="p-3 bg-gray-700/30 rounded">
                             <div className="text-xs text-gray-400 mb-1">设备名称</div>
-                            <div className="text-white font-medium">{linghanDeviceDetail.devName || '未命名'}</div>
+                            <div className="text-white font-medium">
+                              {linghanDeviceDetail.beizhu || linghanDeviceDetail.devName || selectedLinghanDevice?.beizhu || selectedLinghanDevice?.devName || '未命名'}
+                            </div>
                           </div>
                           <div className="p-3 bg-gray-700/30 rounded">
                             <div className="text-xs text-gray-400 mb-1">位置</div>
