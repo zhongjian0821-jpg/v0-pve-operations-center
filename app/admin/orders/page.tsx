@@ -11,7 +11,14 @@ export default function AdminOrdersPage() {
     fetch('/api/purchases?limit=100')
       .then(res => res.json())
       .then(data => {
-        if (data.success) setOrders(data.data);
+        if (data.success) {
+          // API 返回的数据结构是 {success: true, data: {total, purchases}}
+          setOrders(data.data.purchases || data.data || []);
+        }
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('获取订单失败:', error);
         setLoading(false);
       });
   }, []);
