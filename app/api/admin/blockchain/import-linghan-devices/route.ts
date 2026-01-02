@@ -1,5 +1,5 @@
 // app/api/admin/blockchain/import-linghan-devices/route.ts
-// 批量导入灵瀚云设备 - 支持自定义设备ID列表
+// 批量导入灵瀚云设备 - 简化版（不创建机器记录）
 
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
@@ -52,45 +52,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
-        // 创建虚拟机器记录（如果需要）
-        let machineId = null;
-        
-        // 检查是否有未使用的机器
-        const availableMachine = await sql`
-          SELECT id, machine_name 
-          FROM bl_machines 
-          WHERE status = 'pending' 
-          ORDER BY id ASC 
-          LIMIT 1
-        `;
-        
-        if (availableMachine.length > 0) {
-          machineId = availableMachine[0].id;
-        } else {
-          // 创建虚拟机器记录
-          const machineCode = `LH-${cleanDeviceId.substring(0, 8)}`;
-          const newMachine = await sql`
-            INSERT INTO bl_machines (
-              activation_code,
-              machine_code,
-              machine_name,
-              status,
-              created_at,
-              updated_at
-            ) VALUES (
-              ${machineCode},
-              ${machineCode},
-              ${`灵瀚云-${cleanDeviceId.substring(0, 8)}`},
-              'active',
-              NOW(),
-              NOW()
-            )
-            RETURNING id, machine_name
-          `;
-          machineId = newMachine[0].id;
-        }
-        
-        // 创建灵瀚云节点记录
+        // 直接创建灵瀚云节点记录（machine_id 设为 NULL）
         const nodeResult = await sql`
           INSERT INTO bl_blockchain_nodes (
             machine_id,
@@ -101,9 +63,9 @@ export async function POST(request: NextRequest) {
             created_at,
             updated_at
           ) VALUES (
-            ${machineId},
+            NULL,
             'linghan',
-            ${`灵瀚云设备-${cleanDeviceId.substring(0, 8)}`},
+            ${`灵瀚云-${cleanDeviceId.substring(0, 8)}`},
             'running',
             ${JSON.stringify({
               device_id: cleanDeviceId,
@@ -119,7 +81,6 @@ export async function POST(request: NextRequest) {
         
         imported.push({
           deviceId: cleanDeviceId.substring(0, 8) + '...',
-          machineId: machineId,
           nodeId: nodeResult[0].id,
           taskName: nodeResult[0].task_name
         });
