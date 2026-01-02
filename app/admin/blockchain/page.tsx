@@ -564,7 +564,7 @@ export default function BlockchainManagementPage() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            🌐 灵瀚云设备监控 {linghanDevices.length > 0 && `(${linghanDevices.length})`}
+            🌐 灵瀚云设备监控 {nodes.filter(n => n.node_type === 'linghan').length > 0 && `(${nodes.filter(n => n.node_type === 'linghan').length})`}
           </button>
         </div>
 
