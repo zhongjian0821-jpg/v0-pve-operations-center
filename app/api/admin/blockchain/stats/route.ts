@@ -1,43 +1,43 @@
 // app/api/admin/blockchain/stats/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { sql } from '@/lib/db';
 
 export async function GET() {
   try {
     // 获取所有机器
-    const machines = await prisma.machine.findMany();
+    const machines = await sql`SELECT * FROM machines`;
     
     // 获取所有任务
-    const tasks = await prisma.blockchainTask.findMany();
+    const tasks = await sql`SELECT * FROM blockchain_tasks`;
     
     // 统计机器状态
     const machineStats = {
       total: machines.length,
-      active: machines.filter(m => m.status === 'active').length,
-      inactive: machines.filter(m => m.status === 'inactive').length,
-      configured: machines.filter(m => m.ip_address).length,
-      unconfigured: machines.filter(m => !m.ip_address).length,
+      active: machines.filter((m: any) => m.status === 'active').length,
+      inactive: machines.filter((m: any) => m.status === 'inactive').length,
+      configured: machines.filter((m: any) => m.ip_address).length,
+      unconfigured: machines.filter((m: any) => !m.ip_address).length,
     };
     
     // 统计任务状态
     const taskStats = {
       total: tasks.length,
-      running: tasks.filter(t => t.status === 'running').length,
-      pending: tasks.filter(t => t.status === 'pending').length,
-      stopped: tasks.filter(t => t.status === 'stopped').length,
-      failed: tasks.filter(t => t.status === 'failed').length,
+      running: tasks.filter((t: any) => t.status === 'running').length,
+      pending: tasks.filter((t: any) => t.status === 'pending').length,
+      stopped: tasks.filter((t: any) => t.status === 'stopped').length,
+      failed: tasks.filter((t: any) => t.status === 'failed').length,
     };
     
     // 按节点类型统计
-    const nodeTypes = tasks.reduce((acc, task) => {
+    const nodeTypes = tasks.reduce((acc: Record<string, number>, task: any) => {
       const type = task.node_type || 'unknown';
       acc[type] = (acc[type] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
     
     // 计算待部署机器（没有配置或没有任务的机器）
-    const pendingDeployment = machines.filter(m => 
-      !m.ip_address || !tasks.some(t => t.machine_id === m.id)
+    const pendingDeployment = machines.filter((m: any) => 
+      !m.ip_address || !tasks.some((t: any) => t.machine_id === m.id)
     ).length;
     
     return NextResponse.json({
