@@ -1088,12 +1088,21 @@ export default function BlockchainManagementPage() {
                 <CardHeader>
                   <CardTitle className="text-white flex items-center justify-between">
                     <span>灵瀚云设备列表</span>
-                    <button
-                      onClick={loadLinghanDevices}
-                      className="px-3 py-1 bg-orange-500 text-white text-sm rounded hover:bg-orange-600"
-                    >
-                      🔄 刷新
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleImportLinghanDevices}
+                        disabled={importing}
+                        className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {importing ? '⏳' : '📥'} 批量导入
+                      </button>
+                      <button
+                        onClick={loadLinghanDevices}
+                        className="px-3 py-1 bg-orange-500 text-white text-sm rounded hover:bg-orange-600"
+                      >
+                        🔄 刷新
+                      </button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1107,17 +1116,26 @@ export default function BlockchainManagementPage() {
                       <div className="text-4xl mb-4">📭</div>
                       <div className="text-lg mb-2">暂无灵瀚云设备</div>
                       <div className="text-sm text-gray-400 mb-4">还没有添加任何灵瀚云设备</div>
-                      <button
-                        onClick={() => {
-                          setActiveTab('overview');
-                          setDeployForm({...deployForm, nodeType: 'linghan'});
-                        }}
-                        className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-medium transition-all"
-                      >
-                        ➕ 立即添加灵瀚云设备
-                      </button>
+                      <div className="flex gap-3 justify-center">
+                        <button
+                          onClick={handleImportLinghanDevices}
+                          disabled={importing}
+                          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {importing ? '⏳ 导入中...' : '📥 批量导入现有设备'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveTab('overview');
+                            setDeployForm({...deployForm, nodeType: 'linghan'});
+                          }}
+                          className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-medium transition-all"
+                        >
+                          ➕ 手动添加新设备
+                        </button>
+                      </div>
                       <div className="text-xs text-gray-500 mt-3">
-                        点击按钮将跳转到任务总览页面开始添加
+                        批量导入26个已绑定设备，或手动添加新设备
                       </div>
                     </div>
                   ) : (
