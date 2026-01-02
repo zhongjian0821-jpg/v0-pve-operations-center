@@ -60,6 +60,7 @@ export default function BlockchainManagementPage() {
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'linghan'>('overview');
   const [linghanLoading, setLinghanLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   
   const [deployForm, setDeployForm] = useState({
     nodeType: 'cosmos',
@@ -238,6 +239,37 @@ export default function BlockchainManagementPage() {
 
     setLinghanLoading(false);
   };
+  // 批量导入灵瀚云设备
+  const handleImportLinghanDevices = async () => {
+    if (!confirm('确定要批量导入已有的灵瀚云设备吗？\n\n这将导入26个已绑定的设备到系统中。')) {
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const response = await fetch('/api/admin/blockchain/import-linghan-devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ 导入成功！\n\n总计: ${result.data.total}\n导入: ${result.data.imported}\n跳过: ${result.data.skipped}`);
+        await loadData();
+        if (activeTab === 'linghan') {
+          await loadLinghanDevices();
+        }
+      } else {
+        alert('❌ 导入失败: ' + result.error);
+      }
+    } catch (error: any) {
+      alert('❌ 导入失败: ' + error.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
 
   const handleDeploy = async () => {
     if (!selectedMachine || !deployForm.nodeName) {
@@ -779,7 +811,23 @@ export default function BlockchainManagementPage() {
                                   <div className="text-sm text-gray-400">${stat.dailyTotal}/天</div>
                                 </>
                               ) : (
-                                <div className="text-sm text-gray-400">收益数据在监控面板查看</div>
+                                <div className="text-sm text-gray-400 mr-3">收益数据在监控面板查看</div>
+                            {/* 灵瀚云专属按钮 */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setActiveTab('linghan')}
+                                className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-300 rounded text-sm transition-all whitespace-nowrap"
+                              >
+                                📋 查看任务
+                              </button>
+                              <button
+                                onClick={handleImportLinghanDevices}
+                                disabled={importing}
+                                className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/50 text-orange-300 rounded text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                              >
+                                {importing ? '⏳ 导入中...' : '📥 批量导入'}
+                              </button>
+                            </div>
                               )}
                             </div>
                           </div>
