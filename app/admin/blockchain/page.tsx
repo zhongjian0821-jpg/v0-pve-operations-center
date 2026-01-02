@@ -906,34 +906,6 @@ export default function BlockchainManagementPage() {
                         </div>
                       ))}
                     </div>
-
-                    <h3 className="text-lg font-bold text-white mt-6 mb-3">所有运行任务</h3>
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {nodes.length === 0 ? (
-                        <div className="text-center text-gray-500 py-4">暂无任务</div>
-                      ) : (
-                        nodes.map(node => (
-                          <div key={node.id} className="p-3 bg-gray-700/30 border border-gray-600 rounded-lg">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <div className="font-medium text-white">{node.task_name}</div>
-                                <div className="text-xs text-gray-400">
-                                  {NODE_TYPES.find(nt => nt.value === node.node_type)?.label}
-                                  {' · '}
-                                  {machines.find(m => m.id === node.machine_id)?.machine_name}
-                                </div>
-                              </div>
-                              <span className={`px-2 py-1 text-white text-xs rounded ${
-                                node.status === 'running' ? 'bg-green-500' :
-                                node.status === 'stopped' ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}>
-                                {node.status}
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
                   </CardContent>
                 </Card>
               </div>
