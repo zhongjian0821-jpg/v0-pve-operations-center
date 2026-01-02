@@ -152,17 +152,26 @@ export default function BlockchainManagementPage() {
   const loadLinghanDevices = async () => {
     setLinghanLoading(true);
     
-    // 获取已部署为灵瀚云的机器ID列表
+    // 获取所有灵瀚云类型的节点
     const linghanNodes = nodes.filter(n => n.node_type === 'linghan');
-    const devIds = linghanNodes.map(n => n.machine_id.toString());
     
-    if (devIds.length === 0) {
+    if (linghanNodes.length === 0) {
       setLinghanDevices([]);
       setLinghanLoading(false);
       return;
     }
 
     try {
+      // 从config中提取device_id
+      const devIds = linghanNodes.map(n => {
+        try {
+          const config = typeof n.config === 'string' ? JSON.parse(n.config) : n.config;
+          return config.device_id || n.machine_id.toString();
+        } catch {
+          return n.machine_id.toString();
+        }
+      }).filter(Boolean);
+      
       // 批量获取设备详情
       const result = await callLinghanAPI('/getDevListInfo', 'POST', { devIds });
       
