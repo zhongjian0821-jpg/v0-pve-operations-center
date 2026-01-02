@@ -262,21 +262,36 @@ export default function BlockchainManagementPage() {
 
       // 4. 获取95带宽收益
       const bandwidthResult = await callLinghanAPI(`/bandwidth95/${devId}`);
-      console.log('带宽收益:', bandwidthResult);
+      console.log('带宽收益原始响应:', bandwidthResult);
       
-      if (bandwidthResult.code === 200 || bandwidthResult.code === 0) {
-        setLinghanBandwidth(bandwidthResult.data);
+      // bandwidth95 API直接返回数据对象，没有code包装
+      if (bandwidthResult && (bandwidthResult.code === 200 || bandwidthResult.code === 0 || bandwidthResult.devId)) {
+        // 如果有code字段，取data；否则直接使用返回值
+        const data = bandwidthResult.data || bandwidthResult;
+        console.log('带宽收益数据:', data);
+        setLinghanBandwidth(data);
       } else {
+        console.warn('带宽收益数据为空');
         setLinghanBandwidth(null);
       }
 
       // 5. 获取拨号信息（仅大节点）
       if (devType === 1) {
         const dialingResult = await callLinghanAPI(`/getDialingInfo/${devId}`);
-        if (dialingResult.code === 200 || dialingResult.code === 0) {
-          setLinghanDialingInfo(dialingResult.data);
+        console.log('拨号信息原始响应:', dialingResult);
+        
+        // getDialingInfo API直接返回数组，没有code包装
+        if (dialingResult && (dialingResult.code === 200 || dialingResult.code === 0 || Array.isArray(dialingResult))) {
+          // 如果有code字段，取data；如果是数组，直接使用
+          const data = dialingResult.data || dialingResult;
+          console.log('拨号信息数据:', data);
+          setLinghanDialingInfo(data);
+        } else {
+          console.warn('拨号信息数据为空');
+          setLinghanDialingInfo(null);
         }
       } else {
+        console.log('设备类型为小节点，无拨号信息');
         setLinghanDialingInfo(null);
       }
 
