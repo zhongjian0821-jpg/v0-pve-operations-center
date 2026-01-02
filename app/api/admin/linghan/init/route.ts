@@ -2,16 +2,14 @@
 // 灵瀚云数据库表初始化API
 
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import { neon } from '@neondatabase/serverless';
 
 export async function POST() {
-  const client = await pool.connect();
+  const sql = neon(process.env.DATABASE_URL!);
   
   try {
-    await client.query('BEGIN');
-    
     // 1. 灵瀚云设备详情表
-    await client.query(`
+    await sql`
       CREATE TABLE IF NOT EXISTS linghan_devices (
         id SERIAL PRIMARY KEY,
         device_id VARCHAR(100) UNIQUE NOT NULL,
@@ -37,10 +35,10 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_linghan_device_id ON linghan_devices(device_id);
       CREATE INDEX IF NOT EXISTS idx_linghan_node_id ON linghan_devices(node_id);
       CREATE INDEX IF NOT EXISTS idx_linghan_status ON linghan_devices(status);
-    `);
+    `;
 
     // 2. 灵瀚云流量历史表
-    await client.query(`
+    await sql`
       CREATE TABLE IF NOT EXISTS linghan_traffic_history (
         id SERIAL PRIMARY KEY,
         device_id VARCHAR(100) NOT NULL,
@@ -63,10 +61,10 @@ export async function POST() {
       
       CREATE INDEX IF NOT EXISTS idx_traffic_device_date ON linghan_traffic_history(device_id, record_date);
       CREATE INDEX IF NOT EXISTS idx_traffic_date ON linghan_traffic_history(record_date);
-    `);
+    `;
 
     // 3. 灵瀚云收益历史表
-    await client.query(`
+    await sql`
       CREATE TABLE IF NOT EXISTS linghan_income_history (
         id SERIAL PRIMARY KEY,
         device_id VARCHAR(100) NOT NULL,
@@ -91,10 +89,10 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_income_device_date ON linghan_income_history(device_id, income_date);
       CREATE INDEX IF NOT EXISTS idx_income_date ON linghan_income_history(income_date);
       CREATE INDEX IF NOT EXISTS idx_income_status ON linghan_income_history(status);
-    `);
+    `;
 
     // 4. 灵瀚云网卡信息表
-    await client.query(`
+    await sql`
       CREATE TABLE IF NOT EXISTS linghan_network_cards (
         id SERIAL PRIMARY KEY,
         device_id VARCHAR(100) NOT NULL,
@@ -119,10 +117,10 @@ export async function POST() {
       
       CREATE INDEX IF NOT EXISTS idx_card_device ON linghan_network_cards(device_id, card_name);
       CREATE INDEX IF NOT EXISTS idx_card_device_id ON linghan_network_cards(device_id);
-    `);
+    `;
 
     // 5. 灵瀚云拨号信息表
-    await client.query(`
+    await sql`
       CREATE TABLE IF NOT EXISTS linghan_dialing_info (
         id SERIAL PRIMARY KEY,
         device_id VARCHAR(100) NOT NULL,
@@ -143,10 +141,10 @@ export async function POST() {
       );
       
       CREATE INDEX IF NOT EXISTS idx_dialing_device ON linghan_dialing_info(device_id);
-    `);
+    `;
 
     // 6. 灵瀚云同步日志表
-    await client.query(`
+    await sql`
       CREATE TABLE IF NOT EXISTS linghan_sync_logs (
         id SERIAL PRIMARY KEY,
         device_id VARCHAR(100),
@@ -168,9 +166,7 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_sync_type ON linghan_sync_logs(sync_type);
       CREATE INDEX IF NOT EXISTS idx_sync_status ON linghan_sync_logs(sync_status);
       CREATE INDEX IF NOT EXISTS idx_sync_device ON linghan_sync_logs(device_id);
-    `);
-
-    await client.query('COMMIT');
+    `;
 
     return NextResponse.json({
       success: true,
@@ -186,13 +182,10 @@ export async function POST() {
     });
 
   } catch (error: any) {
-    await client.query('ROLLBACK');
     console.error('初始化失败:', error);
     return NextResponse.json({
       success: false,
       error: error.message
     }, { status: 500 });
-  } finally {
-    client.release();
   }
 }
