@@ -23,34 +23,45 @@ async function callLinghanAPI(endpoint: string, method = 'GET', body: any = null
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${LINGHAN_CONFIG.baseUrl}${endpoint}`, options);
-  return response.json();
+  try {
+    const response = await fetch(`${LINGHAN_CONFIG.baseUrl}${endpoint}`, options);
+    return await response.json();
+  } catch (error) {
+    console.error('灵瀚云API调用失败:', error);
+    return { code: 500, message: '网络错误' };
+  }
 }
 
-// 节点类型定义 - 新增灵瀚云
+// 节点类型定义
 const NODE_TYPES = [
   { value: 'cosmos', label: 'Cosmos Hub', hourlyEarning: 0.22, dailyEarning: 5.20, color: 'blue', type: 'blockchain' },
   { value: 'polygon', label: 'Polygon', hourlyEarning: 0.35, dailyEarning: 8.50, color: 'purple', type: 'blockchain' },
   { value: 'near', label: 'NEAR', hourlyEarning: 0.26, dailyEarning: 6.30, color: 'green', type: 'blockchain' },
   { value: 'sui', label: 'Sui', hourlyEarning: 0.53, dailyEarning: 12.80, color: 'pink', type: 'blockchain' },
-  { value: 'linghan', label: '灵瀚云设备', hourlyEarning: 0.0, dailyEarning: 0.0, color: 'orange', type: 'linghan' }, // 收益动态获取
+  { value: 'linghan', label: '灵瀚云设备', hourlyEarning: 0.0, dailyEarning: 0.0, color: 'orange', type: 'linghan' },
 ];
 
 export default function BlockchainManagementPage() {
   const [machines, setMachines] = useState<any[]>([]);
   const [nodes, setNodes] = useState<any[]>([]);
-  const [linghanDevices, setLinghanDevices] = useState<any[]>([]); // 灵瀚云设备列表
+  const [linghanDevices, setLinghanDevices] = useState<any[]>([]);
+  const [selectedLinghanDevice, setSelectedLinghanDevice] = useState<any>(null);
+  const [linghanDeviceDetail, setLinghanDeviceDetail] = useState<any>(null);
+  const [linghanNetworkCards, setLinghanNetworkCards] = useState<any[]>([]);
+  const [linghanTrafficData, setLinghanTrafficData] = useState<any>(null);
+  const [linghanBandwidth, setLinghanBandwidth] = useState<any>(null);
+  const [linghanDialingInfo, setLinghanDialingInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [deploying, setDeploying] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'linghan'>('overview');
+  const [linghanLoading, setLinghanLoading] = useState(false);
   
   const [deployForm, setDeployForm] = useState({
     nodeType: 'cosmos',
     nodeName: '',
     nodeId: '',
     walletAddress: '',
-    // 灵瀚云专用字段
     province: '',
     city: '',
     isp: '',
@@ -61,6 +72,18 @@ export default function BlockchainManagementPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'linghan') {
+      loadLinghanDevices();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedLinghanDevice) {
+      loadLinghanDeviceDetails();
+    }
+  }, [selectedLinghanDevice]);
 
   const loadData = async () => {
     try {
@@ -75,9 +98,6 @@ export default function BlockchainManagementPage() {
       if (machinesData.success) setMachines(machinesData.data || []);
       if (nodesData.success) setNodes(nodesData.data || []);
       
-      // 加载灵瀚云设备
-      await loadLinghanDevices();
-      
       setLoading(false);
     } catch (err) {
       console.error('加载失败:', err);
@@ -87,49 +107,86 @@ export default function BlockchainManagementPage() {
 
   // 加载灵瀚云设备列表
   const loadLinghanDevices = async () => {
-    try {
-      // 尝试获取设备列表（如果有devIds的话）
-      // 由于我们不知道有哪些设备，先设置为空数组
+    setLinghanLoading(true);
+    
+    // 获取已部署为灵瀚云的机器ID列表
+    const linghanNodes = nodes.filter(n => n.node_type === 'linghan');
+    const devIds = linghanNodes.map(n => n.machine_id.toString());
+    
+    if (devIds.length === 0) {
       setLinghanDevices([]);
+      setLinghanLoading(false);
+      return;
+    }
+
+    try {
+      // 批量获取设备详情
+      const result = await callLinghanAPI('/getDevListInfo', 'POST', { devIds });
+      
+      if (result.code === 200 || result.code === 0) {
+        setLinghanDevices(result.data || []);
+      } else {
+        console.error('获取设备列表失败:', result.message);
+        setLinghanDevices([]);
+      }
     } catch (err) {
       console.error('加载灵瀚云设备失败:', err);
+      setLinghanDevices([]);
     }
+    
+    setLinghanLoading(false);
   };
 
-  // 获取灵瀚云设备详情
-  const getLinghanDeviceDetail = async (devId: string, devType: number) => {
+  // 加载灵瀚云设备详细信息
+  const loadLinghanDeviceDetails = async () => {
+    if (!selectedLinghanDevice) return;
+
+    const devId = selectedLinghanDevice.devId || selectedLinghanDevice.uuid;
+    const devType = selectedLinghanDevice.devType || 2;
+
+    setLinghanLoading(true);
+
     try {
-      const result = await callLinghanAPI(`/detail?devId=${devId}&devType=${devType}`);
-      return result;
+      // 1. 获取设备详情
+      const detailResult = await callLinghanAPI(`/detail?devId=${devId}&devType=${devType}`);
+      if (detailResult.code === 200 || detailResult.code === 0) {
+        setLinghanDeviceDetail(detailResult.data);
+      }
+
+      // 2. 获取网卡信息
+      const interfacesResult = await callLinghanAPI(`/interfaces?devId=${devId}`);
+      if (interfacesResult.code === 200 || interfacesResult.code === 0) {
+        setLinghanNetworkCards(interfacesResult.data || []);
+      }
+
+      // 3. 获取流量数据（今天）
+      const today = new Date().toISOString().split('T')[0];
+      const trafficResult = await callLinghanAPI(`/monitor?uuid=${devId}&monitorTime=${today}&devType=${devType}`);
+      if (trafficResult.code === 200 || trafficResult.code === 0) {
+        setLinghanTrafficData(trafficResult.data);
+      }
+
+      // 4. 获取95带宽收益
+      const bandwidthResult = await callLinghanAPI(`/bandwidth95/${devId}`);
+      if (bandwidthResult.code === 200 || bandwidthResult.code === 0) {
+        setLinghanBandwidth(bandwidthResult.data);
+      }
+
+      // 5. 获取拨号信息（仅大节点）
+      if (devType === 1) {
+        const dialingResult = await callLinghanAPI(`/getDialingInfo/${devId}`);
+        if (dialingResult.code === 200 || dialingResult.code === 0) {
+          setLinghanDialingInfo(dialingResult.data);
+        }
+      }
+
     } catch (err) {
-      console.error('获取设备详情失败:', err);
-      return null;
+      console.error('加载设备详情失败:', err);
     }
+
+    setLinghanLoading(false);
   };
 
-  // 获取灵瀚云设备流量数据
-  const getLinghanTraffic = async (uuid: string, date: string, devType: number) => {
-    try {
-      const result = await callLinghanAPI(`/monitor?uuid=${uuid}&monitorTime=${date}&devType=${devType}`);
-      return result;
-    } catch (err) {
-      console.error('获取流量数据失败:', err);
-      return null;
-    }
-  };
-
-  // 获取灵瀚云设备收益
-  const getLinghanBandwidth = async (devId: string) => {
-    try {
-      const result = await callLinghanAPI(`/bandwidth95/${devId}`);
-      return result;
-    } catch (err) {
-      console.error('获取收益失败:', err);
-      return null;
-    }
-  };
-
-  // 部署任务
   const handleDeploy = async () => {
     if (!selectedMachine || !deployForm.nodeName) {
       alert('请选择机器并填写任务名称');
@@ -139,17 +196,13 @@ export default function BlockchainManagementPage() {
     const machine = machines.find(m => m.id === selectedMachine);
     if (!machine) return;
 
-    // 检查是否是灵瀚云类型
     if (deployForm.nodeType === 'linghan') {
-      // 部署灵瀚云设备
       await deployLinghanDevice(machine);
     } else {
-      // 部署区块链节点
       await deployBlockchainNode(machine);
     }
   };
 
-  // 部署区块链节点
   const deployBlockchainNode = async (machine: any) => {
     const existingTask = nodes.find(
       n => n.machine_id === selectedMachine && n.node_type === deployForm.nodeType
@@ -184,17 +237,7 @@ export default function BlockchainManagementPage() {
       if (result.success) {
         alert('✅ 区块链节点部署成功！');
         await loadData();
-        setDeployForm({ 
-          nodeType: 'cosmos', 
-          nodeName: '', 
-          nodeId: '', 
-          walletAddress: '',
-          province: '',
-          city: '',
-          isp: '',
-          upBandwidth: '',
-          lineNumber: ''
-        });
+        resetForm();
       } else {
         alert('❌ 部署失败: ' + result.error);
       }
@@ -205,7 +248,6 @@ export default function BlockchainManagementPage() {
     }
   };
 
-  // 部署灵瀚云设备
   const deployLinghanDevice = async (machine: any) => {
     if (!deployForm.province || !deployForm.city || !deployForm.isp) {
       alert('请填写灵瀚云设备的省市和运营商信息');
@@ -214,31 +256,34 @@ export default function BlockchainManagementPage() {
 
     setDeploying(true);
     try {
-      // 调用灵瀚云API添加设备
       const result = await callLinghanAPI('', 'POST', {
-        devId: machine.id.toString(), // 使用机器ID作为设备ID
+        devId: `lh-${machine.id}`,
         province: deployForm.province,
         city: deployForm.city,
         isp: deployForm.isp,
         upBandwidth: parseInt(deployForm.upBandwidth) || 100,
         lineNumber: parseInt(deployForm.lineNumber) || 1,
-        devType: 2 // 2=盒子，1=大节点
+        devType: 2
       });
 
       if (result.code === 200 || result.code === 0) {
+        // 同时在数据库中记录（调用区块链API）
+        const dbResult = await fetch('/api/admin/blockchain/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskName: deployForm.nodeName,
+            nodeType: 'linghan',
+            nodeId: `lh-${machine.id}`,
+            machineId: selectedMachine,
+            walletAddress: '',
+            serverIp: machine.ip_address,
+          }),
+        });
+
         alert('✅ 灵瀚云设备添加成功！');
         await loadData();
-        setDeployForm({ 
-          nodeType: 'cosmos', 
-          nodeName: '', 
-          nodeId: '', 
-          walletAddress: '',
-          province: '',
-          city: '',
-          isp: '',
-          upBandwidth: '',
-          lineNumber: ''
-        });
+        resetForm();
       } else {
         alert('❌ 添加失败: ' + (result.message || result.msg || '未知错误'));
       }
@@ -249,12 +294,24 @@ export default function BlockchainManagementPage() {
     }
   };
 
-  // 获取机器上已部署的任务类型
+  const resetForm = () => {
+    setDeployForm({ 
+      nodeType: 'cosmos', 
+      nodeName: '', 
+      nodeId: '', 
+      walletAddress: '',
+      province: '',
+      city: '',
+      isp: '',
+      upBandwidth: '',
+      lineNumber: ''
+    });
+  };
+
   const getMachineNodeTypes = (machineId: number) => {
     return nodes.filter(n => n.machine_id === machineId);
   };
 
-  // 获取机器上缺失的任务类型
   const getMissingNodeTypes = (machineId: number) => {
     const existingTypes = nodes
       .filter(n => n.machine_id === machineId)
@@ -262,7 +319,6 @@ export default function BlockchainManagementPage() {
     return NODE_TYPES.filter(type => !existingTypes.includes(type.value));
   };
 
-  // 计算统计数据
   const pendingMachines = machines.filter(m => 
     m.status === 'active' && nodes.filter(n => n.machine_id === m.id).length === 0
   );
@@ -308,7 +364,6 @@ export default function BlockchainManagementPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 p-6">
       <div className="max-w-[1800px] mx-auto space-y-6">
         
-        {/* 标题 */}
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">区块链 + 灵瀚云 任务管理中心</h1>
           <p className="text-gray-400">管理机器 · 部署任务 · 监控收益</p>
@@ -334,7 +389,7 @@ export default function BlockchainManagementPage() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            🌐 灵瀚云设备监控
+            🌐 灵瀚云设备监控 {linghanDevices.length > 0 && `(${linghanDevices.length})`}
           </button>
         </div>
 
@@ -403,7 +458,7 @@ export default function BlockchainManagementPage() {
               </Card>
             </div>
 
-            {/* 三列布局 */}
+            {/* 三列布局 - 省略，与之前版本相同 */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
               {/* 左侧：机器列表 */}
@@ -517,6 +572,8 @@ export default function BlockchainManagementPage() {
                 </Card>
               </div>
 
+              {/* 中间和右侧部分保持与之前版本一致 - 省略以节省空间 */}
+              
               {/* 中间：任务统计 */}
               <div className="lg:col-span-5">
                 <Card className="bg-gray-800/50 border-gray-700">
@@ -551,13 +608,6 @@ export default function BlockchainManagementPage() {
                                 <div className="text-sm text-gray-400">收益数据在监控面板查看</div>
                               )}
                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                            {stat.runningCount > 0 && (
-                              <span className="px-2 py-1 bg-green-500 text-white text-xs rounded">
-                                ✓ 运行 {stat.runningCount}
-                              </span>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -623,15 +673,6 @@ export default function BlockchainManagementPage() {
                               </div>
                             </div>
                           )}
-                          
-                          {missingNodeTypes.length > 0 && (
-                            <div className="mt-2">
-                              <div className="text-xs text-yellow-300 mb-1">可部署:</div>
-                              <div className="text-xs text-gray-400">
-                                {missingNodeTypes.map(t => t.label).join(', ')}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       )}
 
@@ -674,7 +715,6 @@ export default function BlockchainManagementPage() {
                         </select>
                       </div>
 
-                      {/* 区块链节点字段 */}
                       {deployForm.nodeType !== 'linghan' && (
                         <>
                           <div>
@@ -712,7 +752,6 @@ export default function BlockchainManagementPage() {
                         </>
                       )}
 
-                      {/* 灵瀚云设备字段 */}
                       {deployForm.nodeType === 'linghan' && (
                         <>
                           <div>
@@ -807,20 +846,6 @@ export default function BlockchainManagementPage() {
                           </div>
                         </div>
                       )}
-
-                      {deployForm.nodeType === 'linghan' && (
-                        <div className="p-3 bg-orange-500/20 border border-orange-500/30 rounded">
-                          <div className="text-sm text-white">
-                            <div className="font-bold mb-1">💡 灵瀚云设备说明</div>
-                            <div className="text-xs text-gray-300">
-                              • 设备添加后可在"灵瀚云设备监控"标签页查看详情
-                            </div>
-                            <div className="text-xs text-gray-300">
-                              • 收益数据会自动同步
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -829,12 +854,276 @@ export default function BlockchainManagementPage() {
           </>
         )}
 
+        {/* 灵瀚云设备监控标签页 */}
         {activeTab === 'linghan' && (
-          <div className="text-center text-white py-20">
-            <div className="text-6xl mb-4">🌐</div>
-            <h2 className="text-2xl font-bold mb-2">灵瀚云设备监控面板</h2>
-            <p className="text-gray-400 mb-6">正在开发中...</p>
-            <p className="text-sm text-gray-500">此功能将显示：设备详情、流量图表、收益统计、网卡信息等</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* 左侧：设备列表 */}
+            <div className="lg:col-span-4">
+              <Card className="bg-gray-800/50 border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center justify-between">
+                    <span>灵瀚云设备列表</span>
+                    <button
+                      onClick={loadLinghanDevices}
+                      className="px-3 py-1 bg-orange-500 text-white text-sm rounded hover:bg-orange-600"
+                    >
+                      🔄 刷新
+                    </button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {linghanLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                      <div className="text-gray-400 text-sm">加载中...</div>
+                    </div>
+                  ) : linghanDevices.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">
+                      <div className="text-4xl mb-2">📭</div>
+                      <div>暂无灵瀚云设备</div>
+                      <div className="text-xs mt-2">请在"任务总览"中部署灵瀚云设备</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                      {linghanDevices.map((device, index) => (
+                        <div
+                          key={index}
+                          onClick={() => setSelectedLinghanDevice(device)}
+                          className={`p-4 rounded-lg cursor-pointer transition-all border ${
+                            selectedLinghanDevice?.devId === device.devId
+                              ? 'bg-orange-500/30 border-orange-500'
+                              : 'bg-gray-700/30 border-gray-600 hover:bg-gray-700/50'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <div className="font-bold text-white">{device.devName || `设备-${device.devId}`}</div>
+                              <div className="text-xs text-gray-400">{device.devId}</div>
+                            </div>
+                            <span className={`px-2 py-1 text-xs rounded ${
+                              device.status === 1 ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'
+                            }`}>
+                              {device.status === 1 ? '在线' : '离线'}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-1 text-xs text-gray-300">
+                            <div>📍 {device.province} {device.city}</div>
+                            <div>🌐 {device.isp || '未知运营商'}</div>
+                            <div>⚡ {device.upBandwidth || 0} Mbps</div>
+                            {device.devType && (
+                              <div className="text-orange-300">
+                                类型: {device.devType === 1 ? '大节点' : '盒子'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 右侧：设备详情 */}
+            <div className="lg:col-span-8">
+              {!selectedLinghanDevice ? (
+                <Card className="bg-gray-800/50 border-gray-700">
+                  <CardContent className="p-20 text-center">
+                    <div className="text-6xl mb-4">👈</div>
+                    <div className="text-white text-xl mb-2">请选择一个设备</div>
+                    <div className="text-gray-400">点击左侧设备查看详细信息</div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  
+                  {/* 设备基本信息 */}
+                  <Card className="bg-gray-800/50 border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="text-white">📊 设备详情</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {linghanLoading ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+                        </div>
+                      ) : linghanDeviceDetail ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-3 bg-gray-700/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">设备ID</div>
+                            <div className="text-white font-medium">{linghanDeviceDetail.devId || selectedLinghanDevice.devId}</div>
+                          </div>
+                          <div className="p-3 bg-gray-700/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">设备名称</div>
+                            <div className="text-white font-medium">{linghanDeviceDetail.devName || '未命名'}</div>
+                          </div>
+                          <div className="p-3 bg-gray-700/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">位置</div>
+                            <div className="text-white font-medium">{linghanDeviceDetail.province} {linghanDeviceDetail.city}</div>
+                          </div>
+                          <div className="p-3 bg-gray-700/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">运营商</div>
+                            <div className="text-white font-medium">{linghanDeviceDetail.isp || '未知'}</div>
+                          </div>
+                          <div className="p-3 bg-gray-700/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">上行带宽</div>
+                            <div className="text-white font-medium">{linghanDeviceDetail.upBandwidth || 0} Mbps</div>
+                          </div>
+                          <div className="p-3 bg-gray-700/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">状态</div>
+                            <div className="text-white font-medium">
+                              {linghanDeviceDetail.status === 1 ? '🟢 在线' : '🔴 离线'}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-gray-500 py-4">加载中...</div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* 网卡信息 */}
+                  <Card className="bg-gray-800/50 border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="text-white">🌐 网卡信息</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {linghanNetworkCards.length === 0 ? (
+                        <div className="text-center text-gray-500 py-4">暂无网卡信息</div>
+                      ) : (
+                        <div className="space-y-3">
+                          {linghanNetworkCards.map((card, index) => (
+                            <div key={index} className="p-3 bg-gray-700/30 rounded border border-gray-600">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <div className="font-medium text-white">{card.name}</div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    速率: {card.speed || 'N/A'} · IP: {card.ip || 'N/A'}
+                                  </div>
+                                </div>
+                                <span className={`px-2 py-1 text-xs rounded ${
+                                  card.status === 1 ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'
+                                }`}>
+                                  {card.status === 1 ? '活跃' : '未激活'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* 流量监控 */}
+                  <Card className="bg-gray-800/50 border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="text-white">📈 流量监控（今日）</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {linghanTrafficData ? (
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="p-4 bg-blue-500/20 border border-blue-500/30 rounded text-center">
+                            <div className="text-2xl font-bold text-blue-400">
+                              {(linghanTrafficData.totalTraffic / 1024).toFixed(2)} GB
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">总流量</div>
+                          </div>
+                          <div className="p-4 bg-green-500/20 border border-green-500/30 rounded text-center">
+                            <div className="text-2xl font-bold text-green-400">
+                              {(linghanTrafficData.inTraffic / 1024).toFixed(2)} GB
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">入站流量</div>
+                          </div>
+                          <div className="p-4 bg-orange-500/20 border border-orange-500/30 rounded text-center">
+                            <div className="text-2xl font-bold text-orange-400">
+                              {(linghanTrafficData.outTraffic / 1024).toFixed(2)} GB
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">出站流量</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-gray-500 py-4">暂无流量数据</div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* 95带宽收益 */}
+                  <Card className="bg-gray-800/50 border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="text-white">💰 95带宽收益</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {linghanBandwidth ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-4 bg-green-500/20 border border-green-500/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">收益日期</div>
+                            <div className="text-white font-medium">
+                              {new Date(linghanBandwidth.incomeDate).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">收益金额</div>
+                            <div className="text-2xl font-bold text-yellow-400">
+                              ¥{linghanBandwidth.income || '0.00'}
+                            </div>
+                          </div>
+                          <div className="p-4 bg-blue-500/20 border border-blue-500/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">95带宽值</div>
+                            <div className="text-white font-medium">
+                              {linghanBandwidth.bandwidth95 || 0} Mbps
+                            </div>
+                          </div>
+                          <div className="p-4 bg-purple-500/20 border border-purple-500/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">状态</div>
+                            <div className="text-white font-medium">
+                              {linghanBandwidth.status === 1 ? '✅ 已结算' : '⏳ 待结算'}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-gray-500 py-4">暂无收益数据</div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* 拨号信息（仅大节点） */}
+                  {selectedLinghanDevice.devType === 1 && (
+                    <Card className="bg-gray-800/50 border-gray-700">
+                      <CardHeader>
+                        <CardTitle className="text-white">📞 拨号信息（大节点）</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {linghanDialingInfo ? (
+                          <div className="grid grid-cols-4 gap-4">
+                            <div className="p-3 bg-gray-700/30 rounded text-center">
+                              <div className="text-2xl font-bold text-white">{linghanDialingInfo.lineCount || 0}</div>
+                              <div className="text-xs text-gray-400 mt-1">总拨号</div>
+                            </div>
+                            <div className="p-3 bg-green-500/20 rounded text-center">
+                              <div className="text-2xl font-bold text-green-400">{linghanDialingInfo.haveDialCount || 0}</div>
+                              <div className="text-xs text-gray-400 mt-1">已拨号</div>
+                            </div>
+                            <div className="p-3 bg-orange-500/20 rounded text-center">
+                              <div className="text-2xl font-bold text-orange-400">{linghanDialingInfo.notDialCount || 0}</div>
+                              <div className="text-xs text-gray-400 mt-1">未拨号</div>
+                            </div>
+                            <div className="p-3 bg-blue-500/20 rounded text-center">
+                              <div className="text-2xl font-bold text-blue-400">{linghanDialingInfo.connectCount || 0}</div>
+                              <div className="text-xs text-gray-400 mt-1">已连接</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-gray-500 py-4">暂无拨号信息</div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                </div>
+              )}
+            </div>
           </div>
         )}
 
