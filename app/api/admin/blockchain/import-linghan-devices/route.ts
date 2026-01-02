@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
         
         const cleanDeviceId = deviceId.trim();
         
-        // 精确检查是否已经导入（使用JSON提取函数）
+        // 精确检查是否已经导入（使用JSON提取函数，先转换为jsonb）
         const existing = await sql`
           SELECT id, machine_id, config 
           FROM bl_blockchain_nodes 
           WHERE node_type = 'linghan' 
-          AND config->>'device_id' = ${cleanDeviceId}
+          AND config::jsonb->>'device_id' = ${cleanDeviceId}
         `;
         
         if (existing.length > 0) {
