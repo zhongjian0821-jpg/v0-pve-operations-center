@@ -1,5 +1,5 @@
 // app/api/admin/blockchain/import-linghan-devices/route.ts
-// 批量导入灵瀚云设备 - 简化版（不创建机器记录）
+// 批量导入灵瀚云设备 - 带精确重复检查
 
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
@@ -17,11 +17,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
+    // 去重输入的设备ID
+    const uniqueDeviceIds = [...new Set(deviceIds.map(id => String(id).trim()).filter(id => id.length > 0))];
+    
     const imported: any[] = [];
     const skipped: any[] = [];
     const failed: any[] = [];
     
-    for (const deviceId of deviceIds) {
+    for (const deviceId of uniqueDeviceIds) {
       try {
         // 验证设备ID格式
         if (typeof deviceId !== 'string' || deviceId.trim().length === 0) {
@@ -34,12 +37,12 @@ export async function POST(request: NextRequest) {
         
         const cleanDeviceId = deviceId.trim();
         
-        // 检查是否已经导入
+        // 精确检查是否已经导入（使用JSON提取函数）
         const existing = await sql`
           SELECT id, machine_id, config 
           FROM bl_blockchain_nodes 
           WHERE node_type = 'linghan' 
-          AND config::text LIKE ${`%${cleanDeviceId}%`}
+          AND config->>'device_id' = ${cleanDeviceId}
         `;
         
         if (existing.length > 0) {
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
-        // 直接创建灵瀚云节点记录（machine_id 设为 NULL）
+        // 创建灵瀚云节点记录（machine_id 设为 NULL）
         const nodeResult = await sql`
           INSERT INTO bl_blockchain_nodes (
             machine_id,
@@ -97,6 +100,7 @@ export async function POST(request: NextRequest) {
     // 构建响应
     const summary = {
       total: deviceIds.length,
+      unique: uniqueDeviceIds.length,
       imported: imported.length,
       skipped: skipped.length,
       failed: failed.length
