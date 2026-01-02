@@ -72,7 +72,6 @@ const NODE_TYPES = [
 ];
 
 
-      {/* 批量导入设备ID对话框 */}
       {importModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4">
@@ -102,6 +101,75 @@ const NODE_TYPES = [
                 placeholder="请输入设备ID，例如:\n4074445e\n150873b1\n79b9f541\n008c4a9a\n\n或者用逗号分隔：4074445e, 150873b1, 79b9f541"
                 className="w-full h-64 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
                 style={{ resize: 'vertical' }}
+              />
+              <div className="mt-2 text-sm text-gray-400">
+                {deviceIdsInput.split(/[\n,\s]+/).filter(id => id.trim().length > 0).length} 个设备ID
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleImportLinghanDevices}
+                disabled={importing || !deviceIdsInput.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+              >
+                {importing ? '导入中...' : '确认导入'}
+              </button>
+              <button
+                onClick={() => {
+                  setImportModalOpen(false);
+                  setDeviceIdsInput('');
+                }}
+                disabled={importing}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:cursor-not-allowed"
+              >
+                取消
+              </button>
+            </div>
+
+            <div className="mt-4 p-3 bg-gray-900 rounded text-sm text-gray-400">
+              <div className="font-medium text-gray-300 mb-1">💡 使用说明：</div>
+              <ul className="list-disc list-inside space-y-1">
+                <li>每行输入一个设备ID</li>
+                <li>也可以用逗号、空格分隔多个ID</li>
+                <li>系统会自动去重和验证</li>
+                <li>已存在的设备将被跳过</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* 批量导入设备ID对话框 */}
+      {importModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-white">批量导入灵瀚云设备</h3>
+              <button
+                onClick={() => {
+                  setImportModalOpen(false);
+                  setDeviceIdsInput('');
+                }}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                设备ID列表
+                <span className="text-gray-500 ml-2 text-xs">
+                  (每行一个ID，或用逗号/空格分隔)
+                </span>
+              </label>
+              <textarea
+                value={deviceIdsInput}
+                onChange={(e) => setDeviceIdsInput(e.target.value)}
+                placeholder="请输入设备ID，例如:\n4074445e\n150873b1\n79b9f541\n008c4a9a\n\n或者用逗号分隔：4074445e, 150873b1, 79b9f541"
+                className="w-full h-64 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
               />
               <div className="mt-2 text-sm text-gray-400">
                 {deviceIdsInput.split(/[\n,\s]+/).filter(id => id.trim().length > 0).length} 个设备ID
