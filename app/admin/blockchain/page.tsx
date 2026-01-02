@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 // 节点类型定义
 const NODE_TYPES = [
-  { value: 'cosmos', label: 'Cosmos Hub', hourlyEarning: 0.22, dailyEarning: 5.20 },
-  { value: 'polygon', label: 'Polygon', hourlyEarning: 0.35, dailyEarning: 8.50 },
-  { value: 'near', label: 'NEAR', hourlyEarning: 0.26, dailyEarning: 6.30 },
-  { value: 'sui', label: 'Sui', hourlyEarning: 0.53, dailyEarning: 12.80 },
+  { value: 'cosmos', label: 'Cosmos Hub', hourlyEarning: 0.22, dailyEarning: 5.20, color: 'blue' },
+  { value: 'polygon', label: 'Polygon', hourlyEarning: 0.35, dailyEarning: 8.50, color: 'purple' },
+  { value: 'near', label: 'NEAR', hourlyEarning: 0.26, dailyEarning: 6.30, color: 'green' },
+  { value: 'sui', label: 'Sui', hourlyEarning: 0.53, dailyEarning: 12.80, color: 'pink' },
 ];
 
 export default function BlockchainManagementPage() {
@@ -57,6 +57,17 @@ export default function BlockchainManagementPage() {
     const machine = machines.find(m => m.id === selectedMachine);
     if (!machine) return;
 
+    // 检查该机器是否已经部署了相同类型的任务
+    const existingTask = nodes.find(
+      n => n.machine_id === selectedMachine && n.node_type === deployForm.nodeType
+    );
+    
+    if (existingTask) {
+      if (!confirm(`该机器已经部署了 ${NODE_TYPES.find(t => t.value === deployForm.nodeType)?.label} 任务，确定要再部署一个吗？`)) {
+        return;
+      }
+    }
+
     setDeploying(true);
     try {
       const response = await fetch('/api/admin/blockchain/deploy', {
@@ -81,7 +92,7 @@ export default function BlockchainManagementPage() {
         alert('✅ 部署成功！');
         await loadData();
         setDeployForm({ nodeType: 'cosmos', nodeName: '', nodeId: '', walletAddress: '' });
-        setSelectedMachine(null);
+        // 不清空 selectedMachine，方便继续为同一台机器部署其他类型
       } else {
         alert('❌ 部署失败: ' + result.error);
       }
@@ -90,6 +101,19 @@ export default function BlockchainManagementPage() {
     } finally {
       setDeploying(false);
     }
+  };
+
+  // 获取机器上已部署的任务类型
+  const getMachineNodeTypes = (machineId: number) => {
+    return nodes.filter(n => n.machine_id === machineId);
+  };
+
+  // 获取机器上缺失的任务类型
+  const getMissingNodeTypes = (machineId: number) => {
+    const existingTypes = nodes
+      .filter(n => n.machine_id === machineId)
+      .map(n => n.node_type);
+    return NODE_TYPES.filter(type => !existingTypes.includes(type.value));
   };
 
   // 计算统计数据
@@ -118,6 +142,11 @@ export default function BlockchainManagementPage() {
     totalHourly: taskStats.reduce((sum, s) => sum + parseFloat(s.hourlyTotal), 0).toFixed(2),
     totalDaily: taskStats.reduce((sum, s) => sum + parseFloat(s.dailyTotal), 0).toFixed(2),
   };
+
+  // 获取选中机器的信息
+  const selectedMachineData = selectedMachine ? machines.find(m => m.id === selectedMachine) : null;
+  const selectedMachineNodes = selectedMachine ? getMachineNodeTypes(selectedMachine) : [];
+  const missingNodeTypes = selectedMachine ? getMissingNodeTypes(selectedMachine) : [];
 
   if (loading) {
     return (
@@ -238,37 +267,77 @@ export default function BlockchainManagementPage() {
                             <div>💻 {machine.cpu_cores} 核</div>
                             <div>💾 {machine.memory_gb} GB</div>
                           </div>
+                          <div className="mt-2 pt-2 border-t border-orange-500/30">
+                            <div className="text-xs text-orange-400 font-medium">
+                              💰 可部署全部4种任务类型
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {machines.filter(m => nodes.some(n => n.machine_id === m.id)).map(machine => (
-                    <div
-                      key={machine.id}
-                      onClick={() => setSelectedMachine(machine.id)}
-                      className={`p-3 rounded-lg cursor-pointer transition-all ${
-                        selectedMachine === machine.id
-                          ? 'bg-blue-500/30 border-2 border-blue-500'
-                          : 'bg-gray-700/30 border border-gray-600 hover:bg-gray-700/50'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="font-bold text-white">{machine.machine_name}</div>
-                          <div className="text-sm text-gray-400">{machine.ip_address}</div>
+                  {machines.filter(m => nodes.some(n => n.machine_id === m.id)).map(machine => {
+                    const machineNodes = getMachineNodeTypes(machine.id);
+                    const missing = getMissingNodeTypes(machine.id);
+                    
+                    return (
+                      <div
+                        key={machine.id}
+                        onClick={() => setSelectedMachine(machine.id)}
+                        className={`p-3 rounded-lg cursor-pointer transition-all ${
+                          selectedMachine === machine.id
+                            ? 'bg-blue-500/30 border-2 border-blue-500'
+                            : 'bg-gray-700/30 border border-gray-600 hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-bold text-white">{machine.machine_name}</div>
+                            <div className="text-sm text-gray-400">{machine.ip_address}</div>
+                          </div>
+                          <span className="px-2 py-1 bg-green-500 text-white text-xs rounded">运行中</span>
                         </div>
-                        <span className="px-2 py-1 bg-green-500 text-white text-xs rounded">运行中</span>
+                        <div className="grid grid-cols-2 gap-1 text-xs text-gray-300 mb-2">
+                          <div>💻 {machine.cpu_cores} 核</div>
+                          <div>💾 {machine.memory_gb} GB</div>
+                        </div>
+                        
+                        {/* 显示已部署的任务类型 */}
+                        <div className="mt-2 pt-2 border-t border-gray-600">
+                          <div className="text-xs text-gray-400 mb-1">已部署任务 ({machineNodes.length}):</div>
+                          <div className="flex flex-wrap gap-1">
+                            {machineNodes.map(node => {
+                              const nodeType = NODE_TYPES.find(t => t.value === node.node_type);
+                              return (
+                                <span 
+                                  key={node.id}
+                                  className={`px-2 py-0.5 text-xs rounded ${
+                                    nodeType?.color === 'blue' ? 'bg-blue-500/30 text-blue-300' :
+                                    nodeType?.color === 'purple' ? 'bg-purple-500/30 text-purple-300' :
+                                    nodeType?.color === 'green' ? 'bg-green-500/30 text-green-300' :
+                                    'bg-pink-500/30 text-pink-300'
+                                  }`}
+                                >
+                                  {nodeType?.label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* 显示可部署的任务类型 */}
+                          {missing.length > 0 && (
+                            <div className="mt-2">
+                              <div className="text-xs text-yellow-400">可部署 ({missing.length}):</div>
+                              <div className="text-xs text-gray-500">
+                                {missing.map(t => t.label).join(', ')}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-1 text-xs text-gray-300">
-                        <div>💻 {machine.cpu_cores} 核</div>
-                        <div>💾 {machine.memory_gb} GB</div>
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-gray-600 text-xs text-gray-400">
-                        运行任务: <span className="text-green-400">{nodes.filter(n => n.machine_id === machine.id).length}</span> 个
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {machines.length === 0 && (
                     <div className="text-center text-gray-500 py-8">暂无机器</div>
@@ -323,6 +392,8 @@ export default function BlockchainManagementPage() {
                             <div className="font-medium text-white">{node.task_name}</div>
                             <div className="text-xs text-gray-400">
                               {NODE_TYPES.find(nt => nt.value === node.node_type)?.label}
+                              {' · '}
+                              {machines.find(m => m.id === node.machine_id)?.machine_name}
                             </div>
                           </div>
                           <span className={`px-2 py-1 text-white text-xs rounded ${
@@ -348,6 +419,40 @@ export default function BlockchainManagementPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  {/* 选中机器信息 */}
+                  {selectedMachineData && (
+                    <div className="p-3 bg-blue-500/20 border border-blue-500/30 rounded">
+                      <div className="text-sm font-bold text-blue-300 mb-1">选中机器</div>
+                      <div className="text-white font-medium">{selectedMachineData.machine_name}</div>
+                      <div className="text-xs text-gray-400">{selectedMachineData.ip_address}</div>
+                      
+                      {selectedMachineNodes.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-blue-500/30">
+                          <div className="text-xs text-blue-300 mb-1">已部署:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedMachineNodes.map(node => {
+                              const nodeType = NODE_TYPES.find(t => t.value === node.node_type);
+                              return (
+                                <span key={node.id} className="px-1.5 py-0.5 bg-blue-500/30 text-blue-200 text-xs rounded">
+                                  {nodeType?.label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {missingNodeTypes.length > 0 && (
+                        <div className="mt-2">
+                          <div className="text-xs text-yellow-300 mb-1">可部署:</div>
+                          <div className="text-xs text-gray-400">
+                            {missingNodeTypes.map(t => t.label).join(', ')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <label className="text-white text-sm mb-2 block">选择机器</label>
                     <select 
@@ -356,11 +461,14 @@ export default function BlockchainManagementPage() {
                       onChange={(e) => setSelectedMachine(Number(e.target.value))}
                     >
                       <option value="">请选择机器</option>
-                      {machines.map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.machine_name} ({m.ip_address})
-                        </option>
-                      ))}
+                      {machines.map(m => {
+                        const nodeCount = nodes.filter(n => n.machine_id === m.id).length;
+                        return (
+                          <option key={m.id} value={m.id}>
+                            {m.machine_name} ({m.ip_address}) {nodeCount > 0 ? `[${nodeCount}个任务]` : '[空闲]'}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -371,11 +479,16 @@ export default function BlockchainManagementPage() {
                       value={deployForm.nodeType}
                       onChange={(e) => setDeployForm({...deployForm, nodeType: e.target.value})}
                     >
-                      {NODE_TYPES.map(type => (
-                        <option key={type.value} value={type.value}>
-                          {type.label} (${type.hourlyEarning}/时)
-                        </option>
-                      ))}
+                      {NODE_TYPES.map(type => {
+                        const alreadyDeployed = selectedMachine && nodes.some(
+                          n => n.machine_id === selectedMachine && n.node_type === type.value
+                        );
+                        return (
+                          <option key={type.value} value={type.value}>
+                            {type.label} (${type.hourlyEarning}/时) {alreadyDeployed ? '✓已部署' : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
