@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         // 检查是否已经导入
         const existing = await sql`
           SELECT id, machine_id, config 
-          FROM blockchain_nodes 
+          FROM bl_blockchain_nodes 
           WHERE node_type = 'linghan' 
           AND config::text LIKE ${`%${cleanDeviceId}%`}
         `;
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         // 检查是否有未使用的机器
         const availableMachine = await sql`
           SELECT id, machine_name 
-          FROM machines 
+          FROM bl_machines 
           WHERE status = 'pending' 
           ORDER BY id ASC 
           LIMIT 1
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
           // 创建虚拟机器记录
           const machineCode = `LH-${cleanDeviceId.substring(0, 8)}`;
           const newMachine = await sql`
-            INSERT INTO machines (
+            INSERT INTO bl_machines (
               activation_code,
               machine_code,
               machine_name,
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         
         // 创建灵瀚云节点记录
         const nodeResult = await sql`
-          INSERT INTO blockchain_nodes (
+          INSERT INTO bl_blockchain_nodes (
             machine_id,
             node_type,
             task_name,
