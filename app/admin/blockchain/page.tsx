@@ -1,5 +1,28 @@
 'use client';
 
+// 计算灵瀚云流量数据
+function calculateLinghanTraffic(apiData: any) {
+  if (!apiData || !apiData.upList || !apiData.downList) {
+    return { totalTraffic: 0, inTraffic: 0, outTraffic: 0 };
+  }
+  
+  // upList/downList 单位是 Mbps，每个数据点代表5分钟的平均速率
+  // 计算总流量：速率(Mbps) * 时间(300秒) / 8(bit转byte) = MB
+  const upTotal = apiData.upList.reduce((sum: number, val: string) => sum + parseFloat(val || '0'), 0);
+  const downTotal = apiData.downList.reduce((sum: number, val: string) => sum + parseFloat(val || '0'), 0);
+  
+  // Mbps * 300s / 8 = MB
+  const upTrafficMB = (upTotal * 300) / 8;
+  const downTrafficMB = (downTotal * 300) / 8;
+  
+  return {
+    totalTraffic: upTrafficMB + downTrafficMB,  // MB
+    inTraffic: downTrafficMB,                     // MB
+    outTraffic: upTrafficMB                       // MB
+  };
+}
+
+
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -224,10 +247,13 @@ export default function BlockchainManagementPage() {
       // 3. 获取流量数据（今天）
       const today = new Date().toISOString().split('T')[0];
       const trafficResult = await callLinghanAPI(`/monitor?uuid=${devId}&monitorTime=${today}&devType=${devType}`);
-      console.log('流量数据:', trafficResult);
+      console.log('流量数据原始响应:', trafficResult);
       
-      if (trafficResult.code === 200 || trafficResult.code === 0 && trafficResult.data) {
-        setLinghanTrafficData(trafficResult.data);
+      if ((trafficResult.code === 200 || trafficResult.code === 0) && trafficResult.data) {
+        // 计算流量总和
+        const calculatedTraffic = calculateLinghanTraffic(trafficResult.data);
+        console.log('计算后的流量数据:', calculatedTraffic);
+        setLinghanTrafficData(calculatedTraffic);
       } else {
         // 设置默认值避免NaN
         console.warn('流量数据为空，使用默认值');
