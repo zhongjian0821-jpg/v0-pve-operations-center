@@ -880,9 +880,21 @@ export default function BlockchainManagementPage() {
                     </div>
                   ) : linghanDevices.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
-                      <div className="text-4xl mb-2">📭</div>
-                      <div>暂无灵瀚云设备</div>
-                      <div className="text-xs mt-2">请在"任务总览"中部署灵瀚云设备</div>
+                      <div className="text-4xl mb-4">📭</div>
+                      <div className="text-lg mb-2">暂无灵瀚云设备</div>
+                      <div className="text-sm text-gray-400 mb-4">还没有添加任何灵瀚云设备</div>
+                      <button
+                        onClick={() => {
+                          setActiveTab('overview');
+                          setDeployForm({...deployForm, nodeType: 'linghan'});
+                        }}
+                        className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-medium transition-all"
+                      >
+                        ➕ 立即添加灵瀚云设备
+                      </button>
+                      <div className="text-xs text-gray-500 mt-3">
+                        点击按钮将跳转到任务总览页面开始添加
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-[600px] overflow-y-auto">
