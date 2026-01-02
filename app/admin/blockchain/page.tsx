@@ -349,9 +349,7 @@ export default function BlockchainManagementPage() {
         setImportModalOpen(false);
         setDeviceIdsInput('');
         await loadData();
-        if (activeTab === 'linghan') {
-          await loadLinghanDevices();
-        }
+        await loadLinghanDevices();  // 总是刷新灵瀚云设备列表
       } else {
         alert('❌ 导入失败: ' + result.error);
       }
