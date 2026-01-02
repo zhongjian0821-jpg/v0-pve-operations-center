@@ -1,5 +1,5 @@
 // app/api/admin/blockchain/import-now/route.ts
-// 临时导入端点 - 无需认证（仅用于一次性导入）
+// 临时导入端点 - 修复版
 
 import { NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
@@ -59,22 +59,17 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
-        // 创建机器记录
-        const machineCode = `LH-${deviceId.substring(0, 8)}`;
-        const machineName = `灵瀚云-${deviceId.substring(0, 8)}`;
+        // 创建机器记录（只使用存在的列）
+        const activationCode = `LH-${deviceId.substring(0, 8)}`;
         
         const machine = await sql`
           INSERT INTO bl_machines (
             activation_code,
-            machine_code,
-            machine_name,
             status,
             created_at,
             updated_at
           ) VALUES (
-            ${machineCode},
-            ${machineCode},
-            ${machineName},
+            ${activationCode},
             'active',
             NOW(),
             NOW()
