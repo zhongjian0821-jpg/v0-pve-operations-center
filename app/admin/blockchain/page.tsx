@@ -1384,15 +1384,24 @@ export default function BlockchainManagementPage() {
                             </div>
                           </div>
                           <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded">
-                            <div className="text-xs text-gray-400 mb-1">收益金额</div>
+                            <div className="text-xs text-gray-400 mb-1">总收益</div>
                             <div className="text-2xl font-bold text-yellow-400">
-                              ¥{linghanBandwidth.income || '0.00'}
+                              ¥{linghanBandwidth.totalIncome || '0.00'}
                             </div>
                           </div>
+                          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">罚款</div>
+                            <div className="text-2xl font-bold text-red-400">
+                              ¥{linghanBandwidth.fine || '0.00'}
+                            </div>
+                            {linghanBandwidth.fineReason && (
+                              <div className="text-xs text-gray-400 mt-1">原因: {linghanBandwidth.fineReason}</div>
+                            )}
+                          </div>
                           <div className="p-4 bg-blue-500/20 border border-blue-500/30 rounded">
-                            <div className="text-xs text-gray-400 mb-1">95带宽值</div>
+                            <div className="text-xs text-gray-400 mb-1">流量</div>
                             <div className="text-white font-medium">
-                              {linghanBandwidth.bandwidth95 || 0} Mbps
+                              {linghanBandwidth.flow || 0} GB
                             </div>
                           </div>
                           <div className="p-4 bg-purple-500/20 border border-purple-500/30 rounded">
