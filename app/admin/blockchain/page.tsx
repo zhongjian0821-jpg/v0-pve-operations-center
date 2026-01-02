@@ -94,6 +94,8 @@ export default function BlockchainManagementPage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [deviceIdsInput, setDeviceIdsInput] = useState('');
   
+  const [statsData, setStatsData] = useState<any>(null); // 统计数据
+
   const [deployForm, setDeployForm] = useState({
     nodeType: 'cosmos',
     nodeName: '',
@@ -124,19 +126,22 @@ export default function BlockchainManagementPage() {
 
   const loadData = async () => {
     try {
-      const [machinesRes, nodesRes, pendingRes] = await Promise.all([
+      const [machinesRes, nodesRes, pendingRes, statsRes] = await Promise.all([
         fetch('/api/admin/blockchain/machines'),
         fetch('/api/admin/blockchain/nodes'),
-        fetch('/api/admin/blockchain/pending-tasks'), // 新增：获取待分配任务
+        fetch('/api/admin/blockchain/pending-tasks'),
+        fetch('/api/admin/blockchain/stats'), // 新增：获取统计数据
       ]);
 
       const machinesData = await machinesRes.json();
       const nodesData = await nodesRes.json();
       const pendingData = await pendingRes.json();
+      const statsResult = await statsRes.json();
 
       if (machinesData.success) setMachines(machinesData.data || []);
       if (nodesData.success) setNodes(nodesData.data || []);
       if (pendingData.success) setPendingTasks(pendingData.data || []);
+      if (statsResult.success) setStatsData(statsResult.data); // 保存统计数据
       
       setLoading(false);
     } catch (err) {
@@ -509,13 +514,23 @@ export default function BlockchainManagementPage() {
     };
   });
 
-  const stats = {
+  // 优先使用 API 统计数据，如果没有则使用前端计算
+  const stats = statsData ? {
+    totalMachines: statsData.summary.totalMachines,
+    availableMachines: statsData.machines.active,
+    pendingMachines: statsData.pendingDeployment,
+    totalNodes: statsData.summary.totalTasks,
+    runningNodes: statsData.summary.runningTasks,
+    pendingTasks: pendingTasks.length,
+    totalHourly: taskStats.reduce((sum, s) => sum + parseFloat(s.hourlyTotal), 0).toFixed(2),
+    totalDaily: taskStats.reduce((sum, s) => sum + parseFloat(s.dailyTotal), 0).toFixed(2),
+  } : {
     totalMachines: machines.length,
     availableMachines: machines.filter(m => m.status === 'active').length,
     pendingMachines: pendingMachines.length,
     totalNodes: nodes.length,
     runningNodes: nodes.filter(n => n.status === 'running').length,
-    pendingTasks: pendingTasks.length, // 待分配任务数
+    pendingTasks: pendingTasks.length,
     totalHourly: taskStats.reduce((sum, s) => sum + parseFloat(s.hourlyTotal), 0).toFixed(2),
     totalDaily: taskStats.reduce((sum, s) => sum + parseFloat(s.dailyTotal), 0).toFixed(2),
   };
