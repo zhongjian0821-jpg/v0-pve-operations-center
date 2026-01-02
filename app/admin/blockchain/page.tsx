@@ -811,23 +811,25 @@ export default function BlockchainManagementPage() {
                                   <div className="text-sm text-gray-400">${stat.dailyTotal}/天</div>
                                 </>
                               ) : (
-                                <div className="text-sm text-gray-400 mr-3">收益数据在监控面板查看</div>
-                            {/* 灵瀚云专属按钮 */}
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => setActiveTab('linghan')}
-                                className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-300 rounded text-sm transition-all whitespace-nowrap"
-                              >
-                                📋 查看任务
-                              </button>
-                              <button
-                                onClick={handleImportLinghanDevices}
-                                disabled={importing}
-                                className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/50 text-orange-300 rounded text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                              >
-                                {importing ? '⏳ 导入中...' : '📥 批量导入'}
-                              </button>
-                            </div>
+                                <>
+                                  <div className="text-sm text-gray-400 mr-3">收益数据在监控面板查看</div>
+                                  {/* 灵瀚云专属按钮 */}
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => setActiveTab('linghan')}
+                                      className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-300 rounded text-sm transition-all whitespace-nowrap"
+                                    >
+                                      📋 查看任务
+                                    </button>
+                                    <button
+                                      onClick={handleImportLinghanDevices}
+                                      disabled={importing}
+                                      className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/50 text-orange-300 rounded text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                    >
+                                      {importing ? '⏳ 导入中...' : '📥 批量导入'}
+                                    </button>
+                                  </div>
+                                </>
                               )}
                             </div>
                           </div>
