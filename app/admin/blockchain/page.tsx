@@ -197,11 +197,13 @@ export default function BlockchainManagementPage() {
     const devId = selectedLinghanDevice.devId || selectedLinghanDevice.uuid;
     const devType = selectedLinghanDevice.devType || 2;
 
+    console.log('🔍 加载设备详情:', devId);
     setLinghanLoading(true);
 
     try {
       // 1. 获取设备详情
       const detailResult = await callLinghanAPI(`/detail?devId=${devId}&devType=${devType}`);
+      console.log('设备详情:', detailResult);
       if (detailResult.code === 200 || detailResult.code === 0) {
         setLinghanDeviceDetail(detailResult.data);
       }
@@ -215,14 +217,24 @@ export default function BlockchainManagementPage() {
       // 3. 获取流量数据（今天）
       const today = new Date().toISOString().split('T')[0];
       const trafficResult = await callLinghanAPI(`/monitor?uuid=${devId}&monitorTime=${today}&devType=${devType}`);
-      if (trafficResult.code === 200 || trafficResult.code === 0) {
+      console.log('流量数据:', trafficResult);
+      
+      if (trafficResult.code === 200 || trafficResult.code === 0 && trafficResult.data) {
         setLinghanTrafficData(trafficResult.data);
+      } else {
+        // 设置默认值避免NaN
+        console.warn('流量数据为空，使用默认值');
+        setLinghanTrafficData({ totalTraffic: 0, inTraffic: 0, outTraffic: 0 });
       }
 
       // 4. 获取95带宽收益
       const bandwidthResult = await callLinghanAPI(`/bandwidth95/${devId}`);
+      console.log('带宽收益:', bandwidthResult);
+      
       if (bandwidthResult.code === 200 || bandwidthResult.code === 0) {
         setLinghanBandwidth(bandwidthResult.data);
+      } else {
+        setLinghanBandwidth(null);
       }
 
       // 5. 获取拨号信息（仅大节点）
@@ -231,10 +243,16 @@ export default function BlockchainManagementPage() {
         if (dialingResult.code === 200 || dialingResult.code === 0) {
           setLinghanDialingInfo(dialingResult.data);
         }
+      } else {
+        setLinghanDialingInfo(null);
       }
 
     } catch (err) {
       console.error('加载设备详情失败:', err);
+      // 设置默认值
+      setLinghanTrafficData({ totalTraffic: 0, inTraffic: 0, outTraffic: 0 });
+      setLinghanBandwidth(null);
+      setLinghanDialingInfo(null);
     }
 
     setLinghanLoading(false);
