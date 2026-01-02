@@ -10,22 +10,29 @@ const LINGHAN_CONFIG = {
   as: '37f005ebee964853ae6dc96f8ca28792'
 };
 
-// 调用灵瀚云API
+// 调用灵瀚云API（通过后端代理）
 async function callLinghanAPI(endpoint: string, method = 'GET', body: any = null) {
-  const headers: any = {
-    'Content-Type': 'application/json',
-    'ak': LINGHAN_CONFIG.ak,
-    'as': LINGHAN_CONFIG.as
-  };
-
-  const options: any = { method, headers };
-  if (body && (method === 'POST' || method === 'PUT')) {
-    options.body = JSON.stringify(body);
-  }
-
   try {
-    const response = await fetch(`${LINGHAN_CONFIG.baseUrl}${endpoint}`, options);
-    return await response.json();
+    const response = await fetch('/api/linghan/proxy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        endpoint,
+        method,
+        data: body
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      return result.data;
+    } else {
+      console.error('代理API错误:', result.error);
+      return { code: 500, message: result.error };
+    }
   } catch (error) {
     console.error('灵瀚云API调用失败:', error);
     return { code: 500, message: '网络错误' };
