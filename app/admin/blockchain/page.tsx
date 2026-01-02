@@ -1494,10 +1494,8 @@ export default function BlockchainManagementPage() {
           </div>
         )}
 
-      </div>
-    </div>
 
-      {/* 批量导入设备ID对话框 */}
+{/* 批量导入设备ID对话框 */}
       {importModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4">
@@ -1570,6 +1568,9 @@ export default function BlockchainManagementPage() {
           </div>
         </div>
       )}
+      </div>
+    </div>
 
+      
   );
 }
