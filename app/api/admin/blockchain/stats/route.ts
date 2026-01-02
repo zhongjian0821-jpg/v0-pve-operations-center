@@ -7,8 +7,8 @@ export async function GET() {
     // 获取所有机器
     const machines = await sql`SELECT * FROM machines`;
     
-    // 获取所有任务
-    const tasks = await sql`SELECT * FROM blockchain_tasks`;
+    // 获取所有任务（注意：表名是 bl_blockchain_nodes）
+    const tasks = await sql`SELECT * FROM bl_blockchain_nodes`;
     
     // 统计机器状态
     const machineStats = {
