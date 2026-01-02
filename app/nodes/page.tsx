@@ -209,12 +209,12 @@ export default function CloudNodePurchasesPage() {
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredPurchases.map((purchase) => (
               <tr key={purchase.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-4 py-3 text-sm">{purchase.id}</td>
-                <td className="px-4 py-3 text-sm font-mono">{purchase.wallet_address?.slice(0, 10)}...</td>
-                <td className="px-4 py-3 text-sm">{purchase.node_type}</td>
-                <td className="px-4 py-3 text-sm">{purchase.quantity}</td>
-                <td className="px-4 py-3 text-sm">${purchase.total_price}</td>
-                <td className="px-4 py-3 text-sm">
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{purchase.id}</td>
+                <td className="px-4 py-3 text-sm font-mono text-gray-900 dark:text-gray-100">{purchase.wallet_address?.slice(0, 10)}...</td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{purchase.node_type}</td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{purchase.quantity}</td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">${purchase.total_price}</td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                   <span className={`px-2 py-1 rounded text-xs ${
                     purchase.status === 'completed' ? 'bg-green-100 text-green-800' :
                     purchase.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -223,7 +223,7 @@ export default function CloudNodePurchasesPage() {
                     {purchase.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm">
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                   <button onClick={() => { setEditingPurchase(purchase); setShowModal(true); }} className="text-blue-600 hover:underline mr-2">编辑</button>
                   <button onClick={() => handleDelete(purchase.id)} className="text-red-600 hover:underline">删除</button>
                 </td>
