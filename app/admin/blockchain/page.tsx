@@ -236,6 +236,10 @@ export default function BlockchainManagementPage() {
       console.log('设备详情:', detailResult);
       if (detailResult.code === 200 || detailResult.code === 0) {
         setLinghanDeviceDetail(detailResult.data);
+      } else {
+        // 如果detail API失败，使用设备列表中的信息
+        console.log('detail API失败，使用设备列表信息');
+        setLinghanDeviceDetail(selectedLinghanDevice);
       }
 
       // 2. 获取网卡信息
@@ -1324,9 +1328,9 @@ export default function BlockchainManagementPage() {
                                   </div>
                                 </div>
                                 <span className={`px-2 py-1 text-xs rounded ${
-                                  card.status === 1 ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'
+                                  (card.speed && card.speed !== '-1' && card.speed !== -1) || card.ip ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'
                                 }`}>
-                                  {card.status === 1 ? '活跃' : '未激活'}
+                                  {(card.speed && card.speed !== '-1' && card.speed !== -1) || card.ip ? '活跃' : '未激活'}
                                 </span>
                               </div>
                             </div>
