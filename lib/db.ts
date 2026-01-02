@@ -1,15 +1,22 @@
-import { neon } from '@neondatabase/serverless';
+import { Pool } from 'pg';
 
-const sql = neon(process.env.DATABASE_URL!);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
 
-export { sql };
+// 测试连接
+pool.on('connect', () => {
+  console.log('✅ Database connected');
+});
 
-export async function query(text: string, params?: any[]) {
-  try {
-    const result = await sql(text, params);
-    return result;
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
-  }
-}
+pool.on('error', (err) => {
+  console.error('❌ Unexpected database error:', err);
+});
+
+export default pool;
