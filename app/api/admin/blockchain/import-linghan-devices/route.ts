@@ -1,20 +1,20 @@
 // app/api/admin/blockchain/import-linghan-devices/route.ts
 // 批量导入灵瀚云设备 - 支持自定义设备ID列表
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAdmin, successResponse, errorResponse } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
   try {
-    requireAdmin(request);
-    
     // 获取请求体中的设备ID列表
     const body = await request.json();
     const deviceIds = body.deviceIds || [];
     
     if (!Array.isArray(deviceIds) || deviceIds.length === 0) {
-      return errorResponse('请提供至少一个设备ID', 400);
+      return NextResponse.json({
+        success: false,
+        error: '请提供至少一个设备ID'
+      }, { status: 400 });
     }
     
     const imported: any[] = [];
@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
         });
         
       } catch (error: any) {
+        console.error(`导入设备 ${deviceId} 失败:`, error);
         failed.push({
           deviceId: String(deviceId).substring(0, 16),
           reason: error.message || '未知错误'
@@ -140,23 +141,22 @@ export async function POST(request: NextRequest) {
       failed: failed.length
     };
     
-    return successResponse({
+    return NextResponse.json({
+      success: true,
       message: '灵瀚云设备导入完成',
       data: summary,
       details: {
         imported: imported.slice(0, 10),
         skipped: skipped.slice(0, 10),
-        failed: failed.slice(0, 10),
-        hasMore: {
-          imported: imported.length > 10,
-          skipped: skipped.length > 10,
-          failed: failed.length > 10
-        }
+        failed: failed.slice(0, 10)
       }
     });
     
   } catch (error: any) {
     console.error('导入灵瀚云设备失败:', error);
-    return errorResponse(error.message || '导入失败', 500);
+    return NextResponse.json({
+      success: false,
+      error: error.message || '导入失败'
+    }, { status: 500 });
   }
 }
