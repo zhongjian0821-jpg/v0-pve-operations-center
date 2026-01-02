@@ -1424,23 +1424,61 @@ export default function BlockchainManagementPage() {
                         <CardTitle className="text-white">📞 拨号信息（大节点）</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        {linghanDialingInfo ? (
-                          <div className="grid grid-cols-4 gap-4">
-                            <div className="p-3 bg-gray-700/30 rounded text-center">
-                              <div className="text-2xl font-bold text-white">{linghanDialingInfo.lineCount || 0}</div>
-                              <div className="text-xs text-gray-400 mt-1">总拨号</div>
+                        {linghanDialingInfo && Array.isArray(linghanDialingInfo) ? (
+                          <div className="space-y-4">
+                            {/* 汇总统计 */}
+                            <div className="grid grid-cols-4 gap-4">
+                              <div className="p-3 bg-gray-700/30 rounded text-center">
+                                <div className="text-2xl font-bold text-white">
+                                  {linghanDialingInfo.reduce((sum, nic) => sum + (nic.lineCount || 0), 0)}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">总线数</div>
+                              </div>
+                              <div className="p-3 bg-green-500/20 rounded text-center">
+                                <div className="text-2xl font-bold text-green-400">
+                                  {linghanDialingInfo.reduce((sum, nic) => sum + (nic.haveDialCount || 0), 0)}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">已拨号</div>
+                              </div>
+                              <div className="p-3 bg-orange-500/20 rounded text-center">
+                                <div className="text-2xl font-bold text-orange-400">
+                                  {linghanDialingInfo.reduce((sum, nic) => sum + (nic.notDialCount || 0), 0)}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">未拨号</div>
+                              </div>
+                              <div className="p-3 bg-blue-500/20 rounded text-center">
+                                <div className="text-2xl font-bold text-blue-400">
+                                  {linghanDialingInfo.reduce((sum, nic) => sum + (nic.connectCount || 0), 0)}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">已连接</div>
+                              </div>
                             </div>
-                            <div className="p-3 bg-green-500/20 rounded text-center">
-                              <div className="text-2xl font-bold text-green-400">{linghanDialingInfo.haveDialCount || 0}</div>
-                              <div className="text-xs text-gray-400 mt-1">已拨号</div>
-                            </div>
-                            <div className="p-3 bg-orange-500/20 rounded text-center">
-                              <div className="text-2xl font-bold text-orange-400">{linghanDialingInfo.notDialCount || 0}</div>
-                              <div className="text-xs text-gray-400 mt-1">未拨号</div>
-                            </div>
-                            <div className="p-3 bg-blue-500/20 rounded text-center">
-                              <div className="text-2xl font-bold text-blue-400">{linghanDialingInfo.connectCount || 0}</div>
-                              <div className="text-xs text-gray-400 mt-1">已连接</div>
+                            
+                            {/* 网卡详情 */}
+                            <div className="space-y-2">
+                              {linghanDialingInfo.map((nic, idx) => (
+                                <div key={idx} className="p-3 bg-gray-700/30 rounded">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-white">{nic.name}</span>
+                                    <span className="text-xs text-gray-400">
+                                      {nic.speed > 0 ? `${nic.speed} Mbps` : '未连接'}
+                                    </span>
+                                  </div>
+                                  {nic.lineList && nic.lineList.length > 0 && (
+                                    <div className="space-y-1 text-sm">
+                                      {nic.lineList.map((line, lineIdx) => (
+                                        <div key={lineIdx} className="flex items-center gap-2 text-gray-300">
+                                          <span className={line.dialStatus ? "text-green-400" : "text-red-400"}>
+                                            {line.dialStatus ? "✓" : "✗"}
+                                          </span>
+                                          <span>IP: {line.ip || '无'}</span>
+                                          {line.gateway && <span className="text-gray-500">网关: {line.gateway}</span>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ) : (
