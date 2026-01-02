@@ -57,7 +57,7 @@ export default function OrdersPage() {
     try {
       const [adminData, ordersData] = await Promise.all([api.getMe(), api.getOrders()])
       setAdmin(adminData.admin)
-      setOrders(ordersData.orders || [])
+      setOrders(ordersData.data?.records || ordersData.records || ordersData.orders || [])
     } catch (err) {
       window.location.href = '/login'
     } finally {
