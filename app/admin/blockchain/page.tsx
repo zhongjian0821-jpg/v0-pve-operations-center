@@ -1411,8 +1411,14 @@ export default function BlockchainManagementPage() {
                               {new Date(linghanBandwidth.incomeDate).toLocaleDateString()}
                             </div>
                           </div>
-                          <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded">
-                            <div className="text-xs text-gray-400 mb-1">最近结算收益</div>
+                          <div 
+                            className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded cursor-pointer hover:bg-yellow-500/30 transition-all"
+                            onClick={() => setShowDeviceEarnings(!showDeviceEarnings)}
+                          >
+                            <div className="text-xs text-gray-400 mb-1 flex items-center justify-between">
+                              <span>最近结算收益</span>
+                              <span className="text-xs">📊 点击查看明细</span>
+                            </div>
                             <div className="text-2xl font-bold text-yellow-400">
                               ¥{linghanBandwidth.totalIncome?.toFixed(2) || '0.00'}
                             </div>
@@ -1444,6 +1450,18 @@ export default function BlockchainManagementPage() {
                       )}
                     </CardContent>
                   </Card>
+
+                  {/* 设备收入历史 */}
+                  {showDeviceEarnings && selectedLinghanDevice && (
+                    <Card className="bg-gray-800/50 border-gray-700 mt-6">
+                      <CardHeader>
+                        <CardTitle className="text-white">📊 每日收入明细</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <DeviceEarningsHistory deviceId={selectedLinghanDevice.devId} />
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* 拨号信息（仅大节点） */}
                   {selectedLinghanDevice.devType === 1 && (
