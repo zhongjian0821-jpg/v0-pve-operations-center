@@ -89,6 +89,8 @@ export default function BlockchainManagementPage() {
   const [linghanBandwidth, setLinghanBandwidth] = useState<any>(null);
   const [linghanDialingInfo, setLinghanDialingInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [linghanLoading, setLinghanLoading] = useState(false);
+  const [showDeviceEarnings, setShowDeviceEarnings] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'linghan'>('overview');
