@@ -98,9 +98,9 @@ export default function Dashboard() {
         },
         {
           icon: '📝',
-          title: '节点购买',
-          description: '节点购买记录',
-          link: '/purchases',
+          title: '产品中心',
+          description: '产品中心记录',
+          link: '/products',
           color: 'from-violet-500 to-violet-600'
         }
       ]
