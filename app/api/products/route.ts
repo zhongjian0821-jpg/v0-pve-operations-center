@@ -26,9 +26,11 @@ export async function GET() {
         END
     `
 
+    const products = result.rows || result || []
+
     return NextResponse.json({
       success: true,
-      data: result.rows
+      data: products
     })
   } catch (error) {
     console.error('获取产品失败:', error)
@@ -66,63 +68,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({
       success: false,
       error: '更新产品失败'
-    }, { status: 500 })
-  }
-}
-
-// POST - 创建产品 (如果需要)
-export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const { 
-      product_id, 
-      name, 
-      description, 
-      node_type, 
-      order_type, 
-      base_price, 
-      staking_required,
-      features 
-    } = body
-
-    const result = await sql`
-      INSERT INTO products (
-        product_id,
-        name,
-        description,
-        node_type,
-        order_type,
-        base_price,
-        staking_required,
-        is_active,
-        features,
-        created_at,
-        updated_at
-      ) VALUES (
-        ${product_id},
-        ${name},
-        ${description},
-        ${node_type},
-        ${order_type},
-        ${base_price || 0},
-        ${staking_required || 0},
-        true,
-        ${JSON.stringify(features || [])},
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `
-
-    return NextResponse.json({
-      success: true,
-      data: result.rows[0]
-    })
-  } catch (error) {
-    console.error('创建产品失败:', error)
-    return NextResponse.json({
-      success: false,
-      error: '创建产品失败'
     }, { status: 500 })
   }
 }
