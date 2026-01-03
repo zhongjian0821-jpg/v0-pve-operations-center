@@ -36,7 +36,40 @@ const LINGHAN_CONFIG = {
   as: '37f005ebee964853ae6dc96f8ca28792'
 };
 
-// 调用灵瀚云API（通过后端代理）
+
+  // 手动同步所有设备收益数据
+  const handleSyncAllEarnings = async () => {
+    if (syncLoading) return;
+    
+    setSyncLoading(true);
+    try {
+      const response = await fetch('/api/admin/linghan/sync-all-earnings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`同步成功！
+总计: ${result.total} 个设备
+成功: ${result.synced} 个
+失败: ${result.failed} 个
+耗时: ${result.duration_ms}ms`);
+      } else {
+        alert(`同步失败: ${result.error || result.message}`);
+      }
+    } catch (error) {
+      console.error('同步失败:', error);
+      alert(`同步失败: ${error}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // 调用灵瀚云API（通过后端代理）
 async function callLinghanAPI(endpoint: string, method = 'GET', body: any = null) {
   try {
     const response = await fetch('/api/linghan/proxy', {
@@ -90,6 +123,7 @@ export default function BlockchainManagementPage() {
   const [linghanDialingInfo, setLinghanDialingInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showDeviceEarnings, setShowDeviceEarnings] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'linghan'>('overview');
@@ -560,9 +594,27 @@ export default function BlockchainManagementPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 p-6">
       <div className="max-w-[1800px] mx-auto space-y-6">
         
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">区块链 + 灵瀚云 任务管理中心</h1>
-          <p className="text-gray-400">管理机器 · 部署任务 · 监控收益</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">区块链 + 灵瀚云 任务管理中心</h1>
+            <p className="text-gray-400">管理机器 · 部署任务 · 监控收益</p>
+          </div>
+          <button
+            onClick={handleSyncAllEarnings}
+            disabled={syncLoading}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
+          >
+            {syncLoading ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                同步中...
+              </>
+            ) : (
+              <>
+                🔄 同步所有设备收益
+              </>
+            )}
+          </button>
         </div>
 
         {/* 标签切换 */}
