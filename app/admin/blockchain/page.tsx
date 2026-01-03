@@ -124,6 +124,34 @@ export default function BlockchainManagementPage() {
   const [loading, setLoading] = useState(true);
   const [showDeviceEarnings, setShowDeviceEarnings] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+
+  // 手动同步所有设备收益数据
+  const handleSyncAllEarnings = async () => {
+    if (syncLoading) return;
+    
+    setSyncLoading(true);
+    try {
+      const response = await fetch('/api/admin/linghan/sync-all-earnings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`同步成功！\n总计: ${result.total} 个设备\n成功: ${result.synced} 个\n失败: ${result.failed} 个\n耗时: ${result.duration_ms}ms`);
+      } else {
+        alert(`同步失败: ${result.error || result.message}`);
+      }
+    } catch (error) {
+      console.error('同步失败:', error);
+      alert(`同步失败: ${error}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
   const [deploying, setDeploying] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'linghan'>('overview');
