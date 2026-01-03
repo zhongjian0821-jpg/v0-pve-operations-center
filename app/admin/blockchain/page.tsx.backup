@@ -1,8 +1,5 @@
 'use client';
 
-import { DeviceEarningsHistory } from '@/components/devices/DeviceEarningsHistory';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-
 // 计算灵瀚云流量数据
 function calculateLinghanTraffic(apiData: any) {
   if (!apiData || !apiData.upList || !apiData.downList) {
@@ -89,13 +86,10 @@ export default function BlockchainManagementPage() {
   const [linghanBandwidth, setLinghanBandwidth] = useState<any>(null);
   const [linghanDialingInfo, setLinghanDialingInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showDeviceEarnings, setShowDeviceEarnings] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'linghan'>('overview');
   const [linghanLoading, setLinghanLoading] = useState(false);
-  const [earningsDialogOpen, setEarningsDialogOpen] = useState(false);
-  const [selectedDeviceForEarnings, setSelectedDeviceForEarnings] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [deviceIdsInput, setDeviceIdsInput] = useState('');
@@ -1254,16 +1248,6 @@ export default function BlockchainManagementPage() {
                                 类型: {device.devType === 1 ? '大节点' : '盒子'}
                               </div>
                             )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedDeviceForEarnings(device.devId);
-                                setEarningsDialogOpen(true);
-                              }}
-                              className="mt-2 w-full px-3 py-1.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
-                            >
-                              📊 查看收入
-                            </button>
                           </div>
                         </div>
                       ))}
@@ -1412,14 +1396,8 @@ export default function BlockchainManagementPage() {
                               {new Date(linghanBandwidth.incomeDate).toLocaleDateString()}
                             </div>
                           </div>
-                          <div 
-                            className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded cursor-pointer hover:bg-yellow-500/30 transition-all"
-                            onClick={() => setShowDeviceEarnings(!showDeviceEarnings)}
-                          >
-                            <div className="text-xs text-gray-400 mb-1 flex items-center justify-between">
-                              <span>最近结算收益</span>
-                              <span className="text-xs">📊 点击查看明细</span>
-                            </div>
+                          <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded">
+                            <div className="text-xs text-gray-400 mb-1">最近结算收益</div>
                             <div className="text-2xl font-bold text-yellow-400">
                               ¥{linghanBandwidth.totalIncome?.toFixed(2) || '0.00'}
                             </div>
@@ -1451,18 +1429,6 @@ export default function BlockchainManagementPage() {
                       )}
                     </CardContent>
                   </Card>
-
-                  {/* 设备收入历史 */}
-                  {showDeviceEarnings && selectedLinghanDevice && (
-                    <Card className="bg-gray-800/50 border-gray-700 mt-6">
-                      <CardHeader>
-                        <CardTitle className="text-white">📊 收入历史明细</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <DeviceEarningsHistory deviceId={selectedLinghanDevice.devId} />
-                      </CardContent>
-                    </Card>
-                  )}
 
                   {/* 拨号信息（仅大节点） */}
                   {selectedLinghanDevice.devType === 1 && (
