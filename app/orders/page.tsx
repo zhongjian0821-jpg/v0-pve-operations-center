@@ -329,14 +329,14 @@ export default function OrdersPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-4">订单ID</th>
-                  <th className="text-left py-3 px-4">节点ID</th>
-                  <th className="text-left py-3 px-4">钱包地址</th>
-                  <th className="text-left py-3 px-4">类型</th>
-                  <th className="text-right py-3 px-4">购买价格</th>
+                  <th className="text-left py-3 px-4 text-gray-900 font-semibold">订单ID</th>
+                  <th className="text-left py-3 px-4 text-gray-900 font-semibold">节点ID</th>
+                  <th className="text-left py-3 px-4 text-gray-900 font-semibold">钱包地址</th>
+                  <th className="text-left py-3 px-4 text-gray-900 font-semibold">类型</th>
+                  <th className="text-right py-3 px-4 text-gray-900 font-semibold">购买价格</th>
                   <th className="text-right py-3 px-4">质押金额</th>
                   <th className="text-right py-3 px-4">总收益</th>
-                  <th className="text-center py-3 px-4">状态</th>
+                  <th className="text-center py-3 px-4 text-gray-900 font-semibold">状态</th>
                   <th className="text-left py-3 px-4">创建时间</th>
                 </tr>
               </thead>
