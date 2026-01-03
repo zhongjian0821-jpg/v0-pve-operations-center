@@ -219,21 +219,26 @@ export async function POST() {
     // 7. 初始化 team_tree 数据
     console.log('初始化 team_tree 数据...')
     
-    await sql`
-      INSERT INTO team_tree (wallet_address, parent_wallet, level, path, root_wallet)
-      SELECT 
-        wallet_address,
-        parent_wallet,
-        CASE WHEN parent_wallet IS NULL THEN 0 ELSE 1 END as level,
-        CASE 
-          WHEN parent_wallet IS NULL THEN wallet_address
-          ELSE parent_wallet || '/' || wallet_address
-        END as path,
-        COALESCE(parent_wallet, wallet_address) as root_wallet
-      FROM wallets
-      WHERE parent_wallet IS NOT NULL
-      ON CONFLICT DO NOTHING
-    `
+    try {
+      await sql`
+        INSERT INTO team_tree (wallet_address, parent_wallet, level, path, root_wallet)
+        SELECT 
+          wallet_address,
+          parent_wallet,
+          CASE WHEN parent_wallet IS NULL THEN 0 ELSE 1 END as level,
+          CASE 
+            WHEN parent_wallet IS NULL THEN wallet_address
+            ELSE COALESCE(parent_wallet, '') || '/' || wallet_address
+          END as path,
+          COALESCE(parent_wallet, wallet_address) as root_wallet
+        FROM wallets
+        WHERE parent_wallet IS NOT NULL
+        ON CONFLICT DO NOTHING
+      `
+      console.log('✅ team_tree 数据初始化完成')
+    } catch (error) {
+      console.log('⚠️ team_tree 初始化跳过(可能已有数据)')
+    }
     
     console.log('✅ team_tree 数据初始化完成')
 
