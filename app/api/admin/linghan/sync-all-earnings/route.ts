@@ -10,6 +10,8 @@ const LINGHAN_CONFIG = {
 // 初始化数据库表
 async function initDatabase() {
   try {
+    console.log('[Init] 开始初始化数据库...');
+    
     await sql`
       CREATE TABLE IF NOT EXISTS linghan_device_daily_earnings (
         id SERIAL PRIMARY KEY,
@@ -30,14 +32,22 @@ async function initDatabase() {
     await sql`CREATE INDEX IF NOT EXISTS idx_linghan_earnings_device_date ON linghan_device_daily_earnings(device_id, income_date DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_linghan_earnings_date ON linghan_device_daily_earnings(income_date DESC)`;
     
-    console.log('[Init] 数据库表初始化完成');
+    console.log('[Init] ✅ 数据库表初始化完成');
+    return { success: true };
   } catch (error) {
-    console.error('[Init] 初始化失败:', error);
+    console.error('[Init] ❌ 初始化失败:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    };
   }
 }
 
 // 调用灵瀚云API获取设备列表
 async function getLinghanDevices() {
+  console.log('[API] 正在获取灵瀚云设备列表...');
+  
   const response = await fetch(`${LINGHAN_CONFIG.baseUrl}/getDeviceList`, {
     method: 'GET',
     headers: {
@@ -48,16 +58,21 @@ async function getLinghanDevices() {
   });
   
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[API] ❌ 获取设备列表失败: ${response.status}`, errorText);
     throw new Error(`获取设备列表失败: ${response.status}`);
   }
   
   const data = await response.json();
+  console.log(`[API] ✅ 获取到设备数据:`, JSON.stringify(data).substring(0, 200));
   return data.data || data || [];
 }
 
 // 同步单个设备的收益数据
 async function syncDeviceEarnings(deviceId: string, deviceName: string) {
   try {
+    console.log(`[Sync] 正在同步设备 ${deviceId}...`);
+    
     const apiUrl = `${LINGHAN_CONFIG.baseUrl}/bandwidth95/${deviceId}`;
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -69,13 +84,17 @@ async function syncDeviceEarnings(deviceId: string, deviceName: string) {
     });
     
     if (!response.ok) {
+      console.error(`[Sync] ❌ 设备 ${deviceId} API调用失败: ${response.status}`);
       return { success: false, deviceId, error: `API调用失败: ${response.status}` };
     }
     
     const data = await response.json();
     const earningsData = data.data || data;
     
+    console.log(`[Sync] 设备 ${deviceId} 数据:`, JSON.stringify(earningsData).substring(0, 150));
+    
     if (!earningsData || !earningsData.incomeDate) {
+      console.warn(`[Sync] ⚠️ 设备 ${deviceId} 没有收益数据`);
       return { success: false, deviceId, error: '没有收益数据' };
     }
     
@@ -113,6 +132,8 @@ async function syncDeviceEarnings(deviceId: string, deviceName: string) {
         updated_at = CURRENT_TIMESTAMP
     `;
     
+    console.log(`[Sync] ✅ 设备 ${deviceId} 同步成功`);
+    
     return { 
       success: true, 
       deviceId, 
@@ -121,6 +142,7 @@ async function syncDeviceEarnings(deviceId: string, deviceName: string) {
       total_income: earningsData.totalIncome 
     };
   } catch (error) {
+    console.error(`[Sync] ❌ 设备 ${deviceId} 同步失败:`, error);
     return { 
       success: false, 
       deviceId, 
@@ -131,17 +153,29 @@ async function syncDeviceEarnings(deviceId: string, deviceName: string) {
 
 export async function POST() {
   const startTime = Date.now();
-  console.log('[Sync All] 开始批量同步所有设备收益数据');
+  console.log('\n' + '='.repeat(80));
+  console.log('[Sync All] 🚀 开始批量同步所有设备收益数据');
+  console.log('='.repeat(80) + '\n');
   
   try {
     // 1. 初始化数据库（如果表不存在就创建）
-    await initDatabase();
+    const initResult = await initDatabase();
+    if (!initResult.success) {
+      console.error('[Main] ❌ 数据库初始化失败');
+      return NextResponse.json({
+        success: false,
+        error: '数据库初始化失败',
+        details: initResult.error,
+        stack: initResult.stack
+      }, { status: 500 });
+    }
     
     // 2. 获取所有设备
     const devices = await getLinghanDevices();
-    console.log(`[Sync All] 获取到 ${devices.length} 个设备`);
+    console.log(`[Main] 📊 获取到 ${devices.length} 个设备\n`);
     
     if (devices.length === 0) {
+      console.warn('[Main] ⚠️ 没有找到设备');
       return NextResponse.json({
         success: false,
         message: '没有找到设备',
@@ -153,7 +187,10 @@ export async function POST() {
     
     // 3. 批量同步所有设备
     const results = [];
-    for (const device of devices) {
+    for (let i = 0; i < devices.length; i++) {
+      const device = devices[i];
+      console.log(`[Main] [${ i+1}/${devices.length}] 处理设备: ${device.devName || device.devId}`);
+      
       const result = await syncDeviceEarnings(
         device.devId, 
         device.devName || device.devId
@@ -168,7 +205,12 @@ export async function POST() {
     const failed = results.filter(r => !r.success).length;
     const duration = Date.now() - startTime;
     
-    console.log(`[Sync All] 完成！成功: ${synced}, 失败: ${failed}, 耗时: ${duration}ms`);
+    console.log('\n' + '='.repeat(80));
+    console.log(`[Main] ✅ 同步完成！`);
+    console.log(`  - 成功: ${synced} 个`);
+    console.log(`  - 失败: ${failed} 个`);
+    console.log(`  - 耗时: ${duration}ms`);
+    console.log('='.repeat(80) + '\n');
     
     return NextResponse.json({
       success: true,
@@ -180,11 +222,15 @@ export async function POST() {
       details: results
     });
   } catch (error) {
-    console.error('[Sync All] 批量同步失败:', error);
+    console.error('\n' + '='.repeat(80));
+    console.error('[Main] 🛑 批量同步失败:', error);
+    console.error('='.repeat(80) + '\n');
+    
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );
