@@ -10,6 +10,8 @@ export async function GET(request: Request, { params }: { params: { deviceId: st
   }
 
   try {
+    console.log('[Earnings API] Fetching data for device:', params.deviceId, 'days:', days);
+    
     const records = await sql`
       SELECT 
         device_id,
@@ -31,14 +33,13 @@ export async function GET(request: Request, { params }: { params: { deviceId: st
       ORDER BY record_date DESC
     `;
     
-    if (records.length === 0) {
-      return NextResponse.json({ error: 'No earnings data found' }, { status: 404 });
-    }
+    console.log('[Earnings API] Found', records.length, 'records');
     
+    // 即使没有数据也返回空数组，不返回404
     const totalEarningsCny = records.reduce((sum, r) => sum + Number(r.daily_income_cny || 0), 0);
     const totalEarningsAshva = records.reduce((sum, r) => sum + Number(r.daily_income_ashva || 0), 0);
-    const avgDailyCny = totalEarningsCny / records.length;
-    const avgDailyAshva = totalEarningsAshva / records.length;
+    const avgDailyCny = records.length > 0 ? totalEarningsCny / records.length : 0;
+    const avgDailyAshva = records.length > 0 ? totalEarningsAshva / records.length : 0;
     
     const response = {
       device_id: params.deviceId,
@@ -62,13 +63,21 @@ export async function GET(request: Request, { params }: { params: { deviceId: st
     
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Database error:', error);
+    console.error('[Earnings API] Database error:', error);
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        device_id: params.deviceId,
+        // 返回空数据以便前端可以显示
+        total_earnings_cny: 0,
+        total_earnings_ashva: 0,
+        avg_daily_cny: 0,
+        avg_daily_ashva: 0,
+        days_count: 0,
+        daily_records: []
       }, 
-      { status: 500 }
+      { status: 200 } // 返回200而不是500，让前端可以正常显示
     );
   }
 }
