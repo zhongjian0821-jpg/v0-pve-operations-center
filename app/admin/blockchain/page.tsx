@@ -1452,14 +1452,53 @@ export default function BlockchainManagementPage() {
                     </CardContent>
                   </Card>
 
-                  {/* 设备收入历史 */}
-                  {showDeviceEarnings && selectedLinghanDevice && (
+                  {/* 设备收入详情 */}
+                  {showDeviceEarnings && linghanBandwidth && (
                     <Card className="bg-gray-800/50 border-gray-700 mt-6">
                       <CardHeader>
-                        <CardTitle className="text-white">📊 每日收入明细</CardTitle>
+                        <CardTitle className="text-white">📊 收入详情</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <DeviceEarningsHistory deviceId={selectedLinghanDevice.devId} />
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 bg-green-500/20 border border-green-500/30 rounded">
+                              <div className="text-xs text-gray-400 mb-1">收入日期</div>
+                              <div className="text-lg font-bold text-white">
+                                {new Date(linghanBandwidth.incomeDate).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded">
+                              <div className="text-xs text-gray-400 mb-1">总收入</div>
+                              <div className="text-2xl font-bold text-yellow-400">
+                                ¥{linghanBandwidth.totalIncome?.toFixed(2) || '0.00'}
+                              </div>
+                            </div>
+                            <div className="p-4 bg-blue-500/20 border border-blue-500/30 rounded">
+                              <div className="text-xs text-gray-400 mb-1">流量</div>
+                              <div className="text-lg font-bold text-blue-400">
+                                {linghanBandwidth.flow || 0} GB
+                              </div>
+                            </div>
+                            <div className="p-4 bg-red-500/20 border border-red-500/30 rounded">
+                              <div className="text-xs text-gray-400 mb-1">罚款</div>
+                              <div className="text-lg font-bold text-red-400">
+                                ¥{linghanBandwidth.fine?.toFixed(2) || '0.00'}
+                              </div>
+                              {linghanBandwidth.fineReason && (
+                                <div className="text-xs text-gray-400 mt-1">原因: {linghanBandwidth.fineReason}</div>
+                              )}
+                            </div>
+                            <div className="p-4 bg-purple-500/20 border border-purple-500/30 rounded col-span-2">
+                              <div className="text-xs text-gray-400 mb-1">结算状态</div>
+                              <div className="text-lg font-bold text-white">
+                                {linghanBandwidth.status === 1 ? '✅ 已结算' : '⏳ 待结算'}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 text-center mt-4">
+                            💡 提示：这是最近一次的收益数据
+                          </div>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
