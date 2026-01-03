@@ -7,6 +7,35 @@ const LINGHAN_CONFIG = {
   as: '37f005ebee964853ae6dc96f8ca28792'
 };
 
+// 初始化数据库表
+async function initDatabase() {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS linghan_device_daily_earnings (
+        id SERIAL PRIMARY KEY,
+        device_id VARCHAR(100) NOT NULL,
+        device_name VARCHAR(200),
+        income_date DATE NOT NULL,
+        total_income DECIMAL(10, 2) DEFAULT 0,
+        flow DECIMAL(10, 2) DEFAULT 0,
+        fine DECIMAL(10, 2) DEFAULT 0,
+        fine_reason TEXT,
+        status INTEGER DEFAULT 0,
+        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(device_id, income_date)
+      )
+    `;
+    
+    await sql`CREATE INDEX IF NOT EXISTS idx_linghan_earnings_device_date ON linghan_device_daily_earnings(device_id, income_date DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_linghan_earnings_date ON linghan_device_daily_earnings(income_date DESC)`;
+    
+    console.log('[Init] 数据库表初始化完成');
+  } catch (error) {
+    console.error('[Init] 初始化失败:', error);
+  }
+}
+
 // 调用灵瀚云API获取设备列表
 async function getLinghanDevices() {
   const response = await fetch(`${LINGHAN_CONFIG.baseUrl}/getDeviceList`, {
@@ -105,7 +134,10 @@ export async function POST() {
   console.log('[Sync All] 开始批量同步所有设备收益数据');
   
   try {
-    // 1. 获取所有设备
+    // 1. 初始化数据库（如果表不存在就创建）
+    await initDatabase();
+    
+    // 2. 获取所有设备
     const devices = await getLinghanDevices();
     console.log(`[Sync All] 获取到 ${devices.length} 个设备`);
     
@@ -119,7 +151,7 @@ export async function POST() {
       });
     }
     
-    // 2. 批量同步所有设备
+    // 3. 批量同步所有设备
     const results = [];
     for (const device of devices) {
       const result = await syncDeviceEarnings(
