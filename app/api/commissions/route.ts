@@ -1,69 +1,83 @@
-export const dynamic = 'force-dynamic';
-
-import { type NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server'
+import { sql } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const address = searchParams.get('address');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
-
+    const { searchParams } = new URL(request.url)
+    const address = searchParams.get('address')
+    
     if (!address) {
-      return NextResponse.json(
-        { success: false, error: '缺少钱包地址参数' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: false,
+        error: '缺少钱包地址参数'
+      }, { status: 400 })
     }
-
-    const result = await query(
-      `SELECT 
-        id,
-        wallet_address,
-        from_wallet,
-        amount,
+    
+    // 获取佣金汇总
+    const commissionSummary = await sql`
+      SELECT 
         commission_level,
-        transaction_type,
-        created_at
+        COALESCE(SUM(amount), 0) as total_amount,
+        COUNT(*) as transaction_count
       FROM commission_records
-      WHERE LOWER(wallet_address) = LOWER($1)
-      ORDER BY created_at DESC
-      LIMIT $2 OFFSET $3`,
-      [address, limit, offset]
-    );
-
-    // 获取总数
-    const countResult = await query(
-      `SELECT COUNT(*) as total
-      FROM commission_records
-      WHERE LOWER(wallet_address) = LOWER($1)`,
-      [address]
-    );
-
-    const commissions = result.map((c: any) => ({
-      id: c.id,
-      walletAddress: c.wallet_address,
-      fromWallet: c.from_wallet,
-      amount: parseFloat(c.amount || '0'),
-      level: c.commission_level,
-      type: c.transaction_type,
-      date: c.created_at
-    }));
-
+      WHERE LOWER(wallet_address) = LOWER(${address})
+      GROUP BY commission_level
+    `
+    
+    let level1Total = 0
+    let level2Total = 0
+    let level1Count = 0
+    let level2Count = 0
+    
+    commissionSummary.rows.forEach((row: any) => {
+      if (row.commission_level === 1) {
+        level1Total = parseFloat(row.total_amount.toString())
+        level1Count = parseInt(row.transaction_count.toString())
+      } else if (row.commission_level === 2) {
+        level2Total = parseFloat(row.total_amount.toString())
+        level2Count = parseInt(row.transaction_count.toString())
+      }
+    })
+    
     return NextResponse.json({
       success: true,
       data: {
-        total: parseInt(countResult[0]?.total || '0'),
-        commissions: commissions
+        level1Total,
+        level2Total,
+        level1Count,
+        level2Count,
+        totalCommission: level1Total + level2Total,
+        totalCount: level1Count + level2Count
       }
-    });
-
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    })
+    
   } catch (error: any) {
-    console.error('[API] 佣金记录查询失败:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || '查询失败' },
-      { status: 500 }
-    );
+    console.error('Commissions API error:', error)
+    return NextResponse.json({
+      success: false,
+      error: error.message
+    }, { 
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      }
+    })
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    }
+  })
 }
