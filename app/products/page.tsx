@@ -213,7 +213,7 @@ export default function ProductCenterPage() {
                   <label className="text-sm font-medium text-gray-600">产品特性</label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {product.features.map((feature, index) => (
-                      <Badge key={index} variant="outline">
+                      <Badge key={index} variant="secondary" className="bg-gray-100 text-gray-800 border-gray-300">
                         {feature}
                       </Badge>
                     ))}
