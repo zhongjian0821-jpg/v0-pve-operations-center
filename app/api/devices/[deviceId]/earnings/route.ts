@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { sql } from '@/lib/db';
 
 export async function GET(request: Request, { params }: { params: { deviceId: string } }) {
   const { searchParams } = new URL(request.url);
@@ -27,18 +27,18 @@ export async function GET(request: Request, { params }: { params: { deviceId: st
         created_at
       FROM assigned_device_daily_records
       WHERE device_id = ${params.deviceId}
-        AND record_date >= CURRENT_DATE - INTERVAL '${days} days'
+        AND record_date >= CURRENT_DATE - ${days}::integer
       ORDER BY record_date DESC
     `;
     
-    if (records.rows.length === 0) {
+    if (records.length === 0) {
       return NextResponse.json({ error: 'No earnings data found' }, { status: 404 });
     }
     
-    const totalEarningsCny = records.rows.reduce((sum, r) => sum + Number(r.daily_income_cny || 0), 0);
-    const totalEarningsAshva = records.rows.reduce((sum, r) => sum + Number(r.daily_income_ashva || 0), 0);
-    const avgDailyCny = totalEarningsCny / records.rows.length;
-    const avgDailyAshva = totalEarningsAshva / records.rows.length;
+    const totalEarningsCny = records.reduce((sum, r) => sum + Number(r.daily_income_cny || 0), 0);
+    const totalEarningsAshva = records.reduce((sum, r) => sum + Number(r.daily_income_ashva || 0), 0);
+    const avgDailyCny = totalEarningsCny / records.length;
+    const avgDailyAshva = totalEarningsAshva / records.length;
     
     const response = {
       device_id: params.deviceId,
@@ -47,8 +47,8 @@ export async function GET(request: Request, { params }: { params: { deviceId: st
       total_earnings_ashva: totalEarningsAshva,
       avg_daily_cny: avgDailyCny,
       avg_daily_ashva: avgDailyAshva,
-      days_count: records.rows.length,
-      daily_records: records.rows.map(r => ({
+      days_count: records.length,
+      daily_records: records.map(r => ({
         income_date: r.income_date,
         daily_income_cny: Number(r.daily_income_cny || 0),
         daily_income_ashva: Number(r.daily_income_ashva || 0),
