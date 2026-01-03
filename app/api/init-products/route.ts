@@ -37,7 +37,7 @@ export async function POST() {
       ON CONFLICT (product_id) DO NOTHING
     `
 
-    // 3. 插入镜像节点
+    // 3. 插入镜像节点  
     await sql`
       INSERT INTO products (product_id, name, description, node_type, order_type, base_price, staking_required, features)
       VALUES (
@@ -55,18 +55,38 @@ export async function POST() {
 
     // 4. 查询结果
     const result = await sql`SELECT * FROM products ORDER BY id`
+    
+    const products = result.rows || []
 
     return NextResponse.json({
       success: true,
       message: '数据库初始化成功',
-      products_count: result.rows.length,
-      products: result.rows
+      products_count: products.length,
+      products: products
     })
   } catch (error: any) {
     console.error('初始化错误:', error)
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: error?.message || '初始化失败'
+    }, { status: 500 })
+  }
+}
+
+export async function GET() {
+  try {
+    const result = await sql`SELECT * FROM products ORDER BY id`
+    const products = result.rows || []
+    
+    return NextResponse.json({
+      success: true,
+      products_count: products.length,
+      products: products
+    })
+  } catch (error: any) {
+    return NextResponse.json({
+      success: false,
+      error: error?.message || '查询失败'
     }, { status: 500 })
   }
 }
