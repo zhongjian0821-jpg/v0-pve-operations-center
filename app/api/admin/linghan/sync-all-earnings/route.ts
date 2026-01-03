@@ -8,62 +8,36 @@ const LINGHAN_CONFIG = {
 };
 
 export async function POST() {
+  const startTime = Date.now();
+  
   try {
-    console.log('[Sync] 开始同步...');
+    console.log('[Sync All] 🚀 开始同步...');
     
-    // 步骤1: 首先确保表存在
-    try {
-      await sql`
-        CREATE TABLE IF NOT EXISTS linghan_device_daily_earnings (
-          id SERIAL PRIMARY KEY,
-          device_id VARCHAR(100) NOT NULL,
-          device_name VARCHAR(200),
-          income_date DATE NOT NULL,
-          total_income DECIMAL(10, 2) DEFAULT 0,
-          flow DECIMAL(10, 2) DEFAULT 0,
-          fine DECIMAL(10, 2) DEFAULT 0,
-          fine_reason TEXT,
-          status INTEGER DEFAULT 0,
-          synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(device_id, income_date)
-        )
-      `;
-      console.log('[Sync] ✅ 表检查/创建成功');
-    } catch (dbError) {
-      console.error('[Sync] 数据库错误:', dbError);
-      return NextResponse.json(
-        { success: false, error: '数据库错误', details: String(dbError) },
-        { status: 500 }
-      );
-    }
-    
-    // 步骤2: 获取设备列表
-    let devices = [];
-    try {
-      const response = await fetch(`${LINGHAN_CONFIG.baseUrl}/getDeviceList`, {
-        method: 'GET',
-        headers: {
-          'ak': LINGHAN_CONFIG.ak,
-          'as': LINGHAN_CONFIG.as,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API返回 ${response.status}`);
+    // 1. 获取设备列表
+    console.log('[Sync All] 正在获取设备列表...');
+    const devicesResponse = await fetch(`${LINGHAN_CONFIG.baseUrl}/getDeviceList`, {
+      method: 'GET',
+      headers: {
+        'ak': LINGHAN_CONFIG.ak,
+        'as': LINGHAN_CONFIG.as,
+        'Content-Type': 'application/json'
       }
-      
-      const data = await response.json();
-      devices = data.data || data || [];
-      console.log(`[Sync] ✅ 获取到 ${devices.length} 个设备`);
-    } catch (apiError) {
-      console.error('[Sync] API错误:', apiError);
-      return NextResponse.json(
-        { success: false, error: '灵瀚云API错误', details: String(apiError) },
-        { status: 500 }
-      );
+    });
+    
+    if (!devicesResponse.ok) {
+      const errorText = await devicesResponse.text();
+      console.error('[Sync All] ❌ 获取设备列表失败:', devicesResponse.status, errorText);
+      return NextResponse.json({
+        success: false,
+        error: `获取设备列表失败: ${devicesResponse.status}`,
+        details: errorText
+      }, { status: 500 });
     }
+    
+    const devicesData = await devicesResponse.json();
+    const devices = devicesData.data || devicesData || [];
+    
+    console.log(`[Sync All] ✅ 获取到 ${devices.length} 个设备`);
     
     if (devices.length === 0) {
       return NextResponse.json({
@@ -75,31 +49,53 @@ export async function POST() {
       });
     }
     
-    // 步骤3: 同步第一个设备（测试）
-    const firstDevice = devices[0];
-    console.log(`[Sync] 测试同步第一个设备: ${firstDevice.devId}`);
+    // 2. 逐个同步设备
+    const results = [];
     
-    try {
-      const response = await fetch(`${LINGHAN_CONFIG.baseUrl}/bandwidth95/${firstDevice.devId}`, {
-        method: 'GET',
-        headers: {
-          'ak': LINGHAN_CONFIG.ak,
-          'as': LINGHAN_CONFIG.as,
-          'Content-Type': 'application/json'
+    for (let i = 0; i < devices.length; i++) {
+      const device = devices[i];
+      const deviceId = device.devId;
+      const deviceName = device.devName || deviceId;
+      
+      console.log(`[Sync All] [${i+1}/${devices.length}] 同步设备: ${deviceName}`);
+      
+      try {
+        // 获取单个设备收益
+        const earningsResponse = await fetch(`${LINGHAN_CONFIG.baseUrl}/bandwidth95/${deviceId}`, {
+          method: 'GET',
+          headers: {
+            'ak': LINGHAN_CONFIG.ak,
+            'as': LINGHAN_CONFIG.as,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!earningsResponse.ok) {
+          console.error(`[Sync All] ❌ 设备 ${deviceId} API调用失败: ${earningsResponse.status}`);
+          results.push({ 
+            success: false, 
+            deviceId, 
+            deviceName,
+            error: `API调用失败: ${earningsResponse.status}` 
+          });
+          continue;
         }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`设备API返回 ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const earningsData = data.data || data;
-      
-      console.log('[Sync] 收益数据:', JSON.stringify(earningsData).substring(0, 200));
-      
-      if (earningsData && earningsData.incomeDate) {
-        // 写入数据库
+        
+        const earningsData = await earningsResponse.json();
+        const earnings = earningsData.data || earningsData;
+        
+        if (!earnings || !earnings.incomeDate) {
+          console.warn(`[Sync All] ⚠️ 设备 ${deviceId} 没有收益数据`);
+          results.push({ 
+            success: false, 
+            deviceId, 
+            deviceName,
+            error: '没有收益数据' 
+          });
+          continue;
+        }
+        
+        // 存储到数据库
         await sql`
           INSERT INTO linghan_device_daily_earnings (
             device_id,
@@ -109,45 +105,76 @@ export async function POST() {
             flow,
             fine,
             fine_reason,
-            status
+            status,
+            synced_at
           ) VALUES (
-            ${firstDevice.devId},
-            ${firstDevice.devName || firstDevice.devId},
-            ${earningsData.incomeDate},
-            ${earningsData.totalIncome || 0},
-            ${earningsData.flow || 0},
-            ${earningsData.fine || 0},
-            ${earningsData.fineReason || ''},
-            ${earningsData.status || 0}
+            ${deviceId},
+            ${deviceName},
+            ${earnings.incomeDate},
+            ${parseFloat(earnings.totalIncome) || 0},
+            ${parseFloat(earnings.flow) || 0},
+            ${parseFloat(earnings.fine) || 0},
+            ${earnings.fineReason || ''},
+            ${parseInt(earnings.status) || 0},
+            CURRENT_TIMESTAMP
           )
-          ON CONFLICT (device_id, income_date) DO NOTHING
+          ON CONFLICT (device_id, income_date) 
+          DO UPDATE SET
+            device_name = EXCLUDED.device_name,
+            total_income = EXCLUDED.total_income,
+            flow = EXCLUDED.flow,
+            fine = EXCLUDED.fine,
+            fine_reason = EXCLUDED.fine_reason,
+            status = EXCLUDED.status,
+            updated_at = CURRENT_TIMESTAMP
         `;
         
-        console.log('[Sync] ✅ 数据写入成功');
+        console.log(`[Sync All] ✅ 设备 ${deviceId} 同步成功`);
+        results.push({ 
+          success: true, 
+          deviceId, 
+          deviceName,
+          income_date: earnings.incomeDate,
+          total_income: earnings.totalIncome
+        });
+        
+      } catch (error) {
+        console.error(`[Sync All] ❌ 设备 ${deviceId} 处理失败:`, error);
+        results.push({ 
+          success: false, 
+          deviceId, 
+          deviceName,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
-    } catch (syncError) {
-      console.error('[Sync] 同步错误:', syncError);
-      return NextResponse.json(
-        { success: false, error: '同步错误', details: String(syncError) },
-        { status: 500 }
-      );
+      
+      // 避免请求过快
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
+    
+    const synced = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    const duration = Date.now() - startTime;
+    
+    console.log(`[Sync All] ✅ 完成！成功: ${synced}, 失败: ${failed}, 耗时: ${duration}ms`);
     
     return NextResponse.json({
       success: true,
-      message: '测试成功！已同步第一个设备',
+      message: `同步完成！成功 ${synced} 个，失败 ${failed} 个`,
       total: devices.length,
-      synced: 1,
-      test_mode: true
+      synced,
+      failed,
+      duration_ms: duration,
+      details: results
     });
     
   } catch (error) {
-    console.error('[Sync] 未知错误:', error);
+    console.error('[Sync All] 🛑 主进程失败:', error);
+    
     return NextResponse.json(
-      {
-        success: false,
-        error: '未知错误',
-        message: error instanceof Error ? error.message : String(error),
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
