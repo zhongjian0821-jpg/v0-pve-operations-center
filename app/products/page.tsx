@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -5,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Server, ImageIcon, Edit, Save, X } from 'lucide-react'
 
 interface Product {
@@ -161,11 +161,10 @@ export default function ProductCenterPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-600">产品描述</label>
                   {isEditing ? (
-                    <Textarea
+                    <Input
                       value={formData.description || ''}
                       onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                       className="mt-1"
-                      rows={2}
                     />
                   ) : (
                     <p className="text-gray-700 mt-1">{product.description}</p>
