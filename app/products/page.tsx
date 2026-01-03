@@ -138,7 +138,7 @@ export default function ProductCenterPage() {
                   <div className="flex items-center gap-4">
                     {getProductIcon(product.node_type)}
                     <div>
-                      <CardTitle className="text-2xl">{product.name}</CardTitle>
+                      <CardTitle className="text-2xl text-gray-900">{product.name}</CardTitle>
                       {getProductBadge(product.node_type)}
                     </div>
                   </div>
@@ -159,7 +159,7 @@ export default function ProductCenterPage() {
               <CardContent className="space-y-4">
                 {/* 描述 */}
                 <div>
-                  <label className="text-sm font-medium text-gray-600">产品描述</label>
+                  <label className="text-sm font-medium text-gray-700">产品描述</label>
                   {isEditing ? (
                     <Input
                       value={formData.description || ''}
@@ -167,14 +167,14 @@ export default function ProductCenterPage() {
                       className="mt-1"
                     />
                   ) : (
-                    <p className="text-gray-700 mt-1">{product.description}</p>
+                    <p className="text-gray-800 mt-1">{product.description}</p>
                   )}
                 </div>
 
                 {/* 基础价格 */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-600">基础价格</label>
+                    <label className="text-sm font-medium text-gray-700">基础价格</label>
                     {isEditing ? (
                       <Input
                         type="number"
@@ -191,7 +191,7 @@ export default function ProductCenterPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-600">质押要求</label>
+                    <label className="text-sm font-medium text-gray-700">质押要求</label>
                     {isEditing ? (
                       <Input
                         type="number"
@@ -210,7 +210,7 @@ export default function ProductCenterPage() {
 
                 {/* 产品特性 */}
                 <div>
-                  <label className="text-sm font-medium text-gray-600">产品特性</label>
+                  <label className="text-sm font-medium text-gray-700">产品特性</label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {product.features.map((feature, index) => (
                       <Badge key={index} variant="secondary" className="bg-gray-100 text-gray-800 border-gray-300">
