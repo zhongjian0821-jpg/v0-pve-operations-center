@@ -1,5 +1,8 @@
 'use client';
 
+import { DeviceEarningsHistory } from '@/components/devices/DeviceEarningsHistory';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 // 计算灵瀚云流量数据
 function calculateLinghanTraffic(apiData: any) {
   if (!apiData || !apiData.upList || !apiData.downList) {
@@ -90,6 +93,8 @@ export default function BlockchainManagementPage() {
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'linghan'>('overview');
   const [linghanLoading, setLinghanLoading] = useState(false);
+  const [earningsDialogOpen, setEarningsDialogOpen] = useState(false);
+  const [selectedDeviceForEarnings, setSelectedDeviceForEarnings] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [deviceIdsInput, setDeviceIdsInput] = useState('');
@@ -1248,6 +1253,16 @@ export default function BlockchainManagementPage() {
                                 类型: {device.devType === 1 ? '大节点' : '盒子'}
                               </div>
                             )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedDeviceForEarnings(device.devId);
+                                setEarningsDialogOpen(true);
+                              }}
+                              className="mt-2 w-full px-3 py-1.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                            >
+                              📊 查看收入
+                            </button>
                           </div>
                         </div>
                       ))}
