@@ -178,14 +178,14 @@ export default function ProductCenterPage() {
                     {isEditing ? (
                       <Input
                         type="number"
-                        value={formData.base_price || 0}
+                        value={parseFloat(formData.base_price || 0)}
                         onChange={(e) => setEditForm({ ...editForm, base_price: parseFloat(e.target.value) })}
                         className="mt-1"
                         step="0.01"
                       />
                     ) : (
                       <div className="text-2xl font-bold text-blue-600 mt-1">
-                        {product.base_price.toFixed(2)} ASHVA
+                        {parseFloat(product.base_price).toFixed(2)} ASHVA
                       </div>
                     )}
                   </div>
@@ -195,14 +195,14 @@ export default function ProductCenterPage() {
                     {isEditing ? (
                       <Input
                         type="number"
-                        value={formData.staking_required || 0}
+                        value={parseFloat(formData.staking_required || 0)}
                         onChange={(e) => setEditForm({ ...editForm, staking_required: parseFloat(e.target.value) })}
                         className="mt-1"
                         step="0.01"
                       />
                     ) : (
                       <div className="text-2xl font-bold text-purple-600 mt-1">
-                        {product.staking_required.toFixed(2)} ASHVA
+                        {parseFloat(product.staking_required).toFixed(2)} ASHVA
                       </div>
                     )}
                   </div>
