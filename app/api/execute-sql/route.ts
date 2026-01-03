@@ -6,7 +6,7 @@ export async function POST() {
     console.log('开始插入产品数据...')
 
     // 插入云节点托管
-    const result1 = await sql`
+    await sql`
       INSERT INTO products (
         product_id, 
         name, 
@@ -39,13 +39,12 @@ export async function POST() {
         staking_required = EXCLUDED.staking_required,
         features = EXCLUDED.features,
         updated_at = NOW()
-      RETURNING *
     `
 
     console.log('云节点托管插入成功')
 
     // 插入镜像节点  
-    const result2 = await sql`
+    await sql`
       INSERT INTO products (
         product_id,
         name,
@@ -78,7 +77,6 @@ export async function POST() {
         staking_required = EXCLUDED.staking_required,
         features = EXCLUDED.features,
         updated_at = NOW()
-      RETURNING *
     `
 
     console.log('镜像节点插入成功')
@@ -88,15 +86,13 @@ export async function POST() {
       SELECT * FROM products ORDER BY id
     `
 
+    const products = allProducts.rows || allProducts || []
+
     return NextResponse.json({
       success: true,
       message: '产品数据插入成功',
-      inserted: [
-        result1.rows[0],
-        result2.rows[0]
-      ],
-      total_products: allProducts.rows.length,
-      all_products: allProducts.rows
+      total_products: products.length,
+      products: products
     })
   } catch (error: any) {
     console.error('插入产品失败:', error)
